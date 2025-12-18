@@ -1,0 +1,24 @@
+syntax = "proto2";
+
+//Mensagem enviada pelo cliente
+//Transporta como informação todos as teclas
+//De direção que foram direcionadas
+
+message client{
+    required uint64 key         = 1;
+    required uint64 instruction = 2;
+}
+
+message UniverseData{
+    required bytes  Planets = 1;
+    required bytes  Ships   = 2;
+    required bytes  Trash   = 3;
+    required double myPlanet= 4;
+}
+
+message SimplifiedUniverseData{
+    required bytes  planetTrashCount    = 1;
+    required bytes  trashPerShip        = 2;
+    required double freeTrash           = 3;
+    required double maxTrash            = 4;
+}
