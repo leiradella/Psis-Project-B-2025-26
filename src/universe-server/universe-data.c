@@ -68,6 +68,8 @@ int _ReadUniverseData(config_t *cfg, UniverseConfig *universe_config) {
     status += _LookupUniverseInt(cfg, &universe_config->max_trash, "universe.max_trash");
     status += _LookupUniverseInt(cfg, &universe_config->starting_trash, "universe.starting_trash");
     status += _LookupUniverseInt(cfg, &universe_config->trash_ship_capacity, "universe.trash_ship_capacity");
+    status += _LookupUniverseInt(cfg, &universe_config->rep_port, "universe.rep_port");
+    status += _LookupUniverseInt(cfg, &universe_config->pub_port, "universe.pub_port");
     return status;
 }
 

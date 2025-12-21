@@ -24,6 +24,12 @@ typedef struct UniverseConfig {
     int max_trash;
     int starting_trash;
     int trash_ship_capacity;
+
+    //client requests
+    int rep_port;
+
+    //server broadcast publishing for the gamestate
+    int pub_port;
 } UniverseConfig;
 
 //universe objects and other structures

@@ -69,13 +69,50 @@ int main(int argc, char* argv[]) {
     //main loop flag
     int running = 1;
 
-    //main loop: check events, update universe state, draw universe
-    while (running) {
-        CheckEvents(&running, game_state);
-        UpdateUniverse(game_state);
-        Draw(renderer, game_state);
+    //timing variables for independent update and draw frequencies
+    const int UPDATE_FPS = 100;           //updates per second (physics/logic)
+    const int DRAW_FPS = 30;              //frames per second (rendering)
+    const float UPDATE_INTERVAL = 1000.0f / (float)UPDATE_FPS;  //milliseconds per update
+    const float DRAW_INTERVAL = 1000.0f / (float)DRAW_FPS;      //milliseconds per frame
 
-        SDL_Delay(16); 
+    Uint32 last_update_time = SDL_GetTicks();
+    Uint32 last_draw_time = SDL_GetTicks();
+
+    //main loop: check events, update universe state, draw universe at independent rates
+    while (running) {
+        Uint32 current_time = SDL_GetTicks();
+
+        //always check for events
+        CheckEvents(&running, game_state);
+
+        //update universe at UPDATE_FPS rate
+        if (current_time - last_update_time >= UPDATE_INTERVAL) {
+            UpdateUniverse(game_state);
+            last_update_time = current_time;
+        }
+
+        //draw at DRAW_FPS rate
+        if (current_time - last_draw_time >= DRAW_INTERVAL) {
+            Draw(renderer, game_state);
+            last_draw_time = current_time;
+        }
+
+        //calculate time until next event and sleep efficiently
+        //update the update and draw times to reflect this sleep
+        current_time = SDL_GetTicks();
+        float time_to_next_update = UPDATE_INTERVAL - (current_time - last_update_time);
+        float time_to_next_draw = DRAW_INTERVAL - (current_time - last_draw_time);
+
+        float time_to_next_event;
+        if (time_to_next_update < time_to_next_draw) {
+            time_to_next_event = time_to_next_update;
+        } else {
+            time_to_next_event = time_to_next_draw;
+        }
+        
+        if (time_to_next_event > 1) {
+            SDL_Delay((Uint32)(time_to_next_event - 1));
+        }
     }
 
     //free allocated universe state memory
