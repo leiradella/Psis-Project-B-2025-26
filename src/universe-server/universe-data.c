@@ -237,9 +237,9 @@ Ship *_InitializeShips(Planet* planets, int n_ships, int seed) {
         //give ships names based on home planet (same name = home planet)
         ships[i].name = planets[i].name;
 
-        //initial position at invalid coords
-        ships[i].position.x = planets[i].position.x;
-        ships[i].position.y = planets[i].position.y;
+        //initial position at invalid coords CHECK THIS AGAIN LATER LMFAO
+        ships[i].position.x = planets[i].position.x+0.01f; 
+        ships[i].position.y = planets[i].position.y+0.01f;
 
         //no initial velocity or acceleration or trash
         ships[i].velocity.amplitude = 0.0f;

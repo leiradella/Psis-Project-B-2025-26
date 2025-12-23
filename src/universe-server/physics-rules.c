@@ -166,6 +166,70 @@ void _UpdateTrash(GameState* game_state) {
 
 }
 
+void _NewShipAcceleration(GameState* game_state) {
+    Vector total_vector_force;
+    Vector local_vector_force;
+
+    for (int i = 0; i < game_state->n_ships; i ++) {
+        if (!game_state->ships[i].enabled) continue;
+        total_vector_force.amplitude = 0;
+        total_vector_force.angle = 0;
+        for (int n_planet = 0; n_planet < game_state->n_planets; n_planet ++){
+            float force_vector_x = game_state->planets[n_planet].position.x - game_state->ships[i].position.x;
+            float force_vector_y = game_state->planets[n_planet].position.y - game_state->ships[i].position.y;
+            local_vector_force = MakeVector(force_vector_x, force_vector_y);
+            local_vector_force.amplitude = game_state->planets[n_planet].mass / pow(local_vector_force.amplitude, 2);
+            total_vector_force = AddVectors(local_vector_force, total_vector_force);
+            game_state->ships[i].acceleration = total_vector_force;
+        }
+    }
+}
+
+void _NewShipVelocity(GameState* game_state) {
+    for (int i = 0; i < game_state->n_ships; i ++) {
+        if (!game_state->ships[i].enabled) continue;
+        game_state->ships[i].velocity.amplitude *= 0.99;
+        game_state->ships[i].velocity= AddVectors(game_state->ships[i].velocity,
+        game_state->ships[i].acceleration);
+    }
+}
+
+void _NewShipPosition(GameState *game_state) {
+    for (int i = 0; i < game_state->n_ships; i ++) {
+        if (!game_state->ships[i].enabled) continue;
+        
+        float delta_x = game_state->ships[i].velocity.amplitude * 
+            cos(game_state->ships[i].velocity.angle * (3.14159265f / 180.0f));
+
+        float delta_y = game_state->ships[i].velocity.amplitude * 
+            sin(game_state->ships[i].velocity.angle * (3.14159265f / 180.0f));
+        game_state->ships[i].position.x += delta_x;
+        game_state->ships[i].position.y += delta_y;
+
+        //loop around the universe edges
+        if (game_state->ships[i].position.x < 0) {
+            game_state->ships[i].position.x = game_state->universe_size;
+        }
+        else if (game_state->ships[i].position.x > game_state->universe_size) {
+            game_state->ships[i].position.x = game_state->universe_size;
+        }
+
+        if (game_state->ships[i].position.y < 0) {
+            game_state->ships[i].position.y = game_state->universe_size;
+        }
+        else if (game_state->ships[i].position.y > game_state->universe_size) {
+            game_state->ships[i].position.y = game_state->universe_size;
+        }
+    }    
+}
+
+void _UpdateShips(GameState* game_state) {
+
+    _NewShipAcceleration(game_state);
+    _NewShipVelocity(game_state);
+    _NewShipPosition(game_state);
+}
+
 void _CheckGameOver(GameState* game_state) {
 
     //once the trash hits the max, its game over
@@ -182,6 +246,9 @@ void UpdateUniverse(GameState* game_state) {
     //trash stuff
     _GenerateTrash(game_state);
     _UpdateTrash(game_state);
+
+    //ship stuff
+    _UpdateShips(game_state);
 
     _CheckGameOver(game_state);
 }
