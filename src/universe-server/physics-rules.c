@@ -103,7 +103,25 @@ void _NewTrashPosition(GameState* game_state) {
 }
 
 void _UpdatePlanets(GameState* game_state) {
-    (void)game_state;
+    
+    //change recycle planets periodically
+    Uint32 current_time = SDL_GetTicks();
+    Uint32 interval_ms = game_state->planet_change_rate;
+
+    if (current_time - game_state->last_planet_change_time >= interval_ms) {
+
+        if (!_IsAnyShipActive(game_state) || game_state->n_planets < 2) {
+            return; //dont change if no active ships or less than 2 planets
+        }
+
+        //change recycle planet to a new random one
+        int new_index = game_state->recycler_planet_index;
+        while(new_index == game_state->recycler_planet_index) {
+            new_index = rand() % game_state->n_planets;
+        }
+        game_state->recycler_planet_index = new_index;
+        game_state->last_planet_change_time = current_time;
+    }
 }
 
 void _GenerateTrash(GameState* game_state) {

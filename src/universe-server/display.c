@@ -18,8 +18,16 @@ void _DrawPlanets(SDL_Renderer* renderer, GameState* game_state) {
 
     //planets will be drawn as just circles with their names on the top right
     for (int i = 0; i < game_state->n_planets; i++) {
-        //draw planet i as a filled circle (blue)
-        filledCircleRGBA(renderer, (int)game_state->planets[i].position.x, (int)game_state->planets[i].position.y, (int)game_state->planets[i].radius, 0, 0, 255, 255);
+        //draw planet i as a filled circle (blue) and recycler planet as green
+
+        int r,g,b,a;
+        if (i == game_state->recycler_planet_index) {
+            r = 0; g = 255; b = 0; a = 255; //green for recycler planet
+        } else {
+            r = 0; g = 0; b = 255; a = 255; //blue for normal planets
+        }
+
+        filledCircleRGBA(renderer, (int)game_state->planets[i].position.x, (int)game_state->planets[i].position.y, (int)game_state->planets[i].radius, r, g, b, a);
 
         //draw planet name at top-right of planet
         //name is a single char + the amount of trash inside the planet

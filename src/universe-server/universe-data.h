@@ -28,7 +28,8 @@ typedef struct UniverseConfig {
     int max_trash;
     int starting_trash;
     int trash_ship_capacity;
-    int trash_generation_rate_s;
+    int trash_generation_rate_s; //trash generation rate in seconds
+    int planet_change_rate_s; //recycle planet change rate in seconds
 
     //client requests
     int rep_port;
@@ -86,6 +87,9 @@ typedef struct GameState {
 
     Planet* planets;
     int n_planets;
+    int recycler_planet_index;
+    int planet_change_rate;
+    Uint32 last_planet_change_time;
 
     Trash *trashes;
     int n_trashes;

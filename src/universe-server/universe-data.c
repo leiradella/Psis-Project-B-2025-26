@@ -70,6 +70,7 @@ int _ReadUniverseData(config_t *cfg, UniverseConfig *universe_config) {
     status += _LookupUniverseInt(cfg, &universe_config->starting_trash, "universe.starting_trash");
     status += _LookupUniverseInt(cfg, &universe_config->trash_ship_capacity, "universe.trash_ship_capacity");
     status += _LookupUniverseInt(cfg, &universe_config->trash_generation_rate_s, "universe.trash_generation_rate_s");
+    status += _LookupUniverseInt(cfg, &universe_config->planet_change_rate_s, "universe.planet_change_rate_s");
     status += _LookupUniverseInt(cfg, &universe_config->rep_port, "universe.rep_port");
     status += _LookupUniverseInt(cfg, &universe_config->pub_port, "universe.pub_port");
     return status;
@@ -287,6 +288,9 @@ GameState *CreateInitialUniverseState(const char* config_name, int seed) {
     //planets
     game_state->planets = planets;
     game_state->n_planets = universe_config.n_planets;
+    game_state->recycler_planet_index = rand_r((unsigned int*)&seed) % universe_config.n_planets;
+    game_state->planet_change_rate = universe_config.planet_change_rate_s*1000;
+    game_state->last_planet_change_time = SDL_GetTicks();
 
     //trashes
     game_state->trashes = trashes;
@@ -300,6 +304,8 @@ GameState *CreateInitialUniverseState(const char* config_name, int seed) {
     game_state->n_ships = universe_config.n_planets;
 
     game_state->is_game_over = 0;
+
+    game_state->ships[0].enabled = 1; //enable the first ship for testing
 
     return game_state;
 }
