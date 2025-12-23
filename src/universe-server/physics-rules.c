@@ -14,6 +14,18 @@ void CheckEvents(int* running, GameState* game_state) {
     }
 }
 
+int _IsAnyShipActive(GameState* game_state) {
+    //only generate new trash when at least 1 ship is active
+    int active_ships = 0;
+    for (int i=0; i<game_state->n_ships;i++) {
+        active_ships += game_state->ships[i].enabled;
+    }
+    if (active_ships <= 0) {
+        return 0;
+    }
+    return 1;
+}
+
 void _NewTrashAcceleration(GameState* game_state) {
     Vector total_vector_force;
     Vector local_vector_force;
@@ -68,8 +80,8 @@ void _NewTrashPosition(GameState* game_state) {
         }
 
         //planet collision
-        if (game_state->n_trashes >= game_state->max_trash) {
-            continue; //skip collision if at max trash
+        if (game_state->n_trashes >= game_state->max_trash || !_IsAnyShipActive(game_state)) {
+            continue; //skip collision if at max trash or if there arent any ships active
         }
         for (int j = 0; j < game_state->n_planets; j++) {
             float dx = game_state->trashes[i].position.x - game_state->planets[j].position.x;
@@ -103,12 +115,7 @@ void _GenerateTrash(GameState* game_state) {
     //check if enough time has passed since last generation
     if (current_time - game_state->last_trash_gen_time >= interval_ms) {
 
-        //only generate new trash when at least 1 ship is active
-        int active_ships = 0;
-        for (int i=0; i<game_state->n_ships;i++) {
-            active_ships += game_state->ships[i].enabled;
-        }
-        if (active_ships <= 0) {
+        if (!_IsAnyShipActive(game_state)) {
             return;
         }
 
