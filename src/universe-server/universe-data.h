@@ -12,6 +12,9 @@
 #define TRASH_MASS 1
 #define TRASH_RADIUS 4.0f
 
+#define SHIP_MASS 1
+#define SHIP_RADIUS 10.0f
+
 #define COLLISION_DISTANCE 1.0f
 
 //math constants
@@ -63,14 +66,31 @@ typedef struct Trash {
     float radius;
 } Trash;
 
+//ship structure
+typedef struct Ship {
+    Position position;
+    Vector velocity;
+    Vector acceleration;
+    int mass;
+    float radius;
+    int trash_amount;
+
+    int enabled;
+} Ship;
+
 //game state structure (so that we dont pass too many parameters on the main loop)
 typedef struct GameState {
     int universe_size;
+
     Planet* planets;
     int n_planets;
+
     Trash *trashes;
     int n_trashes;
     int max_trash;
+
+    Ship* ships;
+    int n_ships;
 
     int is_game_over;
 } GameState;
