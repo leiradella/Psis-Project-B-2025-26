@@ -37,7 +37,15 @@ int main(int argc, char* argv[]) {
         SDL_Quit();
         return 1;
     }
+
+    //load font
+    TTF_Font* font = TTF_OpenFont("arial.ttf", 12);
+    if (font == NULL) {
+        printf("Failed to load font: %s\n", TTF_GetError());
+        exit(1);
+    }
     
+    game_state->font = font;
 
     //create SDL_window variable
     SDL_Window *window = SDL_CreateWindow(
@@ -120,6 +128,7 @@ int main(int argc, char* argv[]) {
 
 
     //destroy SDL variables and quit SDL
+    TTF_CloseFont(game_state->font);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     TTF_Quit();

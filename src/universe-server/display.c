@@ -9,13 +9,6 @@
 
 void _DrawPlanets(SDL_Renderer* renderer, GameState* game_state) {
 
-    //load font for planet names
-    TTF_Font* font = TTF_OpenFont("arial.ttf", 12);
-    if (font == NULL) {
-        printf("Failed to load font: %s\n", TTF_GetError());
-        exit(1);
-    }
-
     //planets will be drawn as just circles with their names on the top right
     for (int i = 0; i < game_state->n_planets; i++) {
         //draw planet i as a filled circle (blue) and recycler planet as green
@@ -35,7 +28,7 @@ void _DrawPlanets(SDL_Renderer* renderer, GameState* game_state) {
         snprintf(name_text, sizeof(name_text), "%c%d", game_state->planets[i].name, game_state->planets[i].trash_amount);
         SDL_Color textColor = {0, 0, 0, 255}; //black color
         
-        SDL_Surface* textSurface = TTF_RenderText_Solid(font, name_text, textColor);
+        SDL_Surface* textSurface = TTF_RenderText_Solid(game_state->font, name_text, textColor);
         if (textSurface == NULL) {
             printf("Failed to create text surface: %s\n", TTF_GetError());
             exit(1);
@@ -58,7 +51,6 @@ void _DrawPlanets(SDL_Renderer* renderer, GameState* game_state) {
         SDL_DestroyTexture(textTexture);
     }
 
-    TTF_CloseFont(font);
 }
 
 void _DrawTrash(SDL_Renderer* renderer, GameState* game_state) {
@@ -66,6 +58,43 @@ void _DrawTrash(SDL_Renderer* renderer, GameState* game_state) {
     //trash will be drawn as small red circles
     for (int i = 0; i < game_state->n_trashes; i++) {
         filledCircleRGBA(renderer, (int)game_state->trashes[i].position.x, (int)game_state->trashes[i].position.y, (int)game_state->trashes[i].radius, 255, 0, 0, 255);
+    }
+}
+
+void _DrawShips(SDL_Renderer* renderer, GameState* game_state) {
+    //render ships as yellow circles with their name and trash amount
+
+    for (int i = 0; i < game_state->n_ships; i++) {
+        if (game_state->ships[i].enabled == 0) continue; //dont draw disabled ships
+
+        int r,g,b,a;
+        r = 255; g = 255; b = 0; a = 255; //yellow for ships
+
+        filledCircleRGBA(renderer, (int)game_state->ships[i].position.x, (int)game_state->ships[i].position.y, (int)game_state->ships[i].radius, r, g, b, a);
+
+        //draw ship name at top-right of ship and trash amount
+        char name_text[10];
+        snprintf(name_text, sizeof(name_text), "%c%d", game_state->ships[i].name, game_state->ships[i].trash_amount);
+        SDL_Color textColor = {0, 0, 0, 255}; //black color
+        SDL_Surface* textSurface = TTF_RenderText_Solid(game_state->font, name_text, textColor);
+        if (textSurface == NULL) {
+            printf("Failed to create text surface: %s\n", TTF_GetError());
+            exit(1);
+        }
+        SDL_Texture* textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
+        if (textTexture == NULL) {
+            printf("Failed to create text texture: %s\n", SDL_GetError());
+            SDL_FreeSurface(textSurface);
+            exit(1);
+        }
+        SDL_Rect textRect;
+        textRect.x = (int)(game_state->ships[i].position.x + game_state->ships[i].radius);
+        textRect.y = (int)(game_state->ships[i].position.y - game_state->ships[i].radius);
+        textRect.w = textSurface->w * 2;  
+        textRect.h = textSurface->h * 2;
+        SDL_FreeSurface(textSurface);
+        SDL_RenderCopy(renderer, textTexture, NULL, &textRect);
+        SDL_DestroyTexture(textTexture);
     }
 }
 
@@ -118,6 +147,7 @@ void Draw(SDL_Renderer* renderer, GameState* game_state) {
     //for each of the GameStates object vectors, we make a draw loop.
     _DrawPlanets(renderer, game_state);
     _DrawTrash(renderer, game_state);
+    _DrawShips(renderer, game_state);
     _DrawGameOver(renderer, game_state);
 
     //present the rendered frame

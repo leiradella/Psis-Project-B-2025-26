@@ -2,6 +2,7 @@
 #define UNIVERSE_DATA_H
 
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
 #include <libconfig.h>
 
 //default values for universe objects
@@ -77,7 +78,7 @@ typedef struct Ship {
     int mass;
     float radius;
     int trash_amount;
-
+    char name;
     int enabled;
 } Ship;
 
@@ -101,7 +102,8 @@ typedef struct GameState {
     int n_ships;
 
     int is_game_over;
-    
+    TTF_Font* font;
+
 } GameState;
 
 //Vector creation from x and y components
