@@ -94,6 +94,45 @@ void _UpdatePlanets(GameState* game_state) {
     (void)game_state;
 }
 
+void _GenerateTrash(GameState* game_state) {
+
+    //generate trash periodically 
+    Uint32 current_time = SDL_GetTicks();
+    Uint32 interval_ms = game_state->trash_gen_rate;
+    
+    //check if enough time has passed since last generation
+    if (current_time - game_state->last_trash_gen_time >= interval_ms) {
+
+        //only generate new trash when at least 1 ship is active
+        int active_ships = 0;
+        for (int i=0; i<game_state->n_ships;i++) {
+            active_ships += game_state->ships[i].enabled;
+        }
+        if (active_ships <= 0) {
+            return;
+        }
+
+        //generate new trash if we haven't reached max
+        if (game_state->n_trashes < game_state->max_trash) {
+            //get random x and y inside universe bounds
+            float x = ((float)(rand() % game_state->universe_size));
+            float y = ((float)(rand() % game_state->universe_size));
+
+            //place new trash at that position
+            game_state->trashes[game_state->n_trashes].position.x = x;
+            game_state->trashes[game_state->n_trashes].position.y = y;
+            //get random velocity
+            game_state->trashes[game_state->n_trashes].velocity.amplitude = ((float)(rand() % 100)) / 100.0f;
+            game_state->trashes[game_state->n_trashes].velocity.angle = ((float)(rand() % 360));
+
+            game_state->n_trashes++;
+        }
+        
+        //update last generation time
+        game_state->last_trash_gen_time = current_time;
+    }
+}
+
 void _UpdateTrash(GameState* game_state) {
 
     _NewTrashAcceleration(game_state);
@@ -114,6 +153,9 @@ void _CheckGameOver(GameState* game_state) {
 void UpdateUniverse(GameState* game_state) {
     //update each object vector in the game state
     _UpdatePlanets(game_state);
+
+    //trash stuff
+    _GenerateTrash(game_state);
     _UpdateTrash(game_state);
 
     _CheckGameOver(game_state);

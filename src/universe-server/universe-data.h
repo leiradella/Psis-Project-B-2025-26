@@ -1,6 +1,7 @@
 #ifndef UNIVERSE_DATA_H
 #define UNIVERSE_DATA_H
 
+#include <SDL2/SDL.h>
 #include <libconfig.h>
 
 //default values for universe objects
@@ -27,6 +28,7 @@ typedef struct UniverseConfig {
     int max_trash;
     int starting_trash;
     int trash_ship_capacity;
+    int trash_generation_rate_s;
 
     //client requests
     int rep_port;
@@ -88,11 +90,14 @@ typedef struct GameState {
     Trash *trashes;
     int n_trashes;
     int max_trash;
+    int trash_gen_rate;
+    Uint32 last_trash_gen_time;
 
     Ship* ships;
     int n_ships;
 
     int is_game_over;
+    
 } GameState;
 
 //Vector creation from x and y components
