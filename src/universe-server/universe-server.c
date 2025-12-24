@@ -26,7 +26,7 @@ int main(int argc, char* argv[]) {
     }
 
     //initialize communications
-    CommunicationManager* comm = CommunicationInit(game_state->n_ships); //cant have more clients than ships
+    CommunicationManager* comm = CommunicationInit(game_state); //cant have more clients than ships
     if (comm == NULL) {
         printf("Failed to initialize communication manager. Exiting...\n");
         DestroyUniverse(&game_state);

@@ -493,7 +493,7 @@ static const ProtobufCFieldDescriptor server_connect_message__field_descriptors[
     "id",
     2,
     PROTOBUF_C_LABEL_REQUIRED,
-    PROTOBUF_C_TYPE_BYTES,
+    PROTOBUF_C_TYPE_STRING,
     0,   /* quantifier_offset */
     offsetof(ServerConnectMessage, id),
     NULL,

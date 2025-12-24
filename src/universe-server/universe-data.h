@@ -35,7 +35,7 @@ typedef struct UniverseConfig {
     int planet_change_rate_s; //recycle planet change rate in seconds
 
     //client requests
-    int rep_port;
+    int router_port;
 
     //server broadcast publishing for the gamestate
     int pub_port;
@@ -118,7 +118,7 @@ typedef struct GameState {
     int is_game_over;
     TTF_Font* font;
 
-    int rep_port;
+    int router_port;
     int pub_port;
 
 } GameState;

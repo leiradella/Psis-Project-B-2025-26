@@ -42,5 +42,5 @@ message ClientConnectMessage {
 //servidor responde com OK/ERROR e o id da nave de volta
 message ServerConnectMessage {
     required ServerConnectMessageType msg_type = 1;
-    required bytes id = 2;
+    required string id = 2;
 }

@@ -49,7 +49,7 @@ int client_receive_and_process(CommunicationManager* comm);
 
 //Send response to client (connection response or move acknowledgment)
 //Uses ZMQ identity of last received message to route reply
-int client_send_response(CommunicationManager* comm, ServerConnectMessage* msg);
+int client_send_response(CommunicationManager* comm, ServerConnectMessage* msg, uint8_t* identity, size_t identity_size);
 
 //Broadcast game state to all connected clients via PUB socket
 int client_broadcast_game_state(CommunicationManager* comm, UniverseData* data);

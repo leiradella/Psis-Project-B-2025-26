@@ -97,11 +97,11 @@ struct  ServerConnectMessage
 {
   ProtobufCMessage base;
   ServerConnectMessageType msg_type;
-  ProtobufCBinaryData id;
+  char *id;
 };
 #define SERVER_CONNECT_MESSAGE__INIT \
  { PROTOBUF_C_MESSAGE_INIT (&server_connect_message__descriptor) \
-    , SERVER_CONNECT_MESSAGE_TYPE__OK, {0,NULL} }
+    , SERVER_CONNECT_MESSAGE_TYPE__OK, NULL }
 
 
 /* Client methods */
