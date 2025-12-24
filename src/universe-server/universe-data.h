@@ -72,12 +72,20 @@ typedef struct Trash {
 
 //ship structure
 typedef struct Ship {
+    //physics stuff
     Position position;
     Vector velocity;
     Vector acceleration;
     int mass;
+
+    //input
+    float thrust;
+
+    //collision
     float radius;
     int trash_amount;
+
+    //other stuff
     char name;
     int enabled;
 } Ship;

@@ -11,7 +11,26 @@ void CheckEvents(int* running, GameState* game_state) {
             printf("Quit event received. Exiting...\n");
             *running = 0;
         }
+
+        if (event.type == SDL_KEYDOWN) {
+            if (event.key.keysym.sym == SDLK_w) {
+                game_state->ships[0].thrust = 0.10f;
+            }
+            if (event.key.keysym.sym == SDLK_s) {
+                game_state->ships[0].thrust = -0.10f;
+            }
+        }
+        if (event.type == SDL_KEYUP) {
+            if (event.key.keysym.sym == SDLK_w) {
+                game_state->ships[0].thrust = 0.0f;
+            }
+            if (event.key.keysym.sym == SDLK_s) {
+                game_state->ships[0].thrust = 0.0f;
+            }
+        }
+
     }
+
 }
 
 int _IsAnyShipActive(GameState* game_state) {
@@ -182,6 +201,11 @@ void _NewShipAcceleration(GameState* game_state) {
             total_vector_force = AddVectors(local_vector_force, total_vector_force);
             game_state->ships[i].acceleration = total_vector_force;
         }
+        //apply thrust
+        Vector thrust_vector;
+        thrust_vector.amplitude = game_state->ships[i].thrust / game_state->ships[i].mass;
+        thrust_vector.angle = game_state->ships[i].velocity.angle; //thrust in direction of current velocity
+        game_state->ships[i].acceleration = AddVectors(game_state->ships[i].acceleration, thrust_vector);
     }
 }
 
@@ -208,17 +232,17 @@ void _NewShipPosition(GameState *game_state) {
 
         //loop around the universe edges
         if (game_state->ships[i].position.x < 0) {
-            game_state->ships[i].position.x = game_state->universe_size;
+            game_state->ships[i].position.x += game_state->universe_size;
         }
         else if (game_state->ships[i].position.x > game_state->universe_size) {
-            game_state->ships[i].position.x = game_state->universe_size;
+            game_state->ships[i].position.x -= game_state->universe_size;
         }
 
         if (game_state->ships[i].position.y < 0) {
-            game_state->ships[i].position.y = game_state->universe_size;
+            game_state->ships[i].position.y += game_state->universe_size;
         }
         else if (game_state->ships[i].position.y > game_state->universe_size) {
-            game_state->ships[i].position.y = game_state->universe_size;
+            game_state->ships[i].position.y -= game_state->universe_size;
         }
     }    
 }
