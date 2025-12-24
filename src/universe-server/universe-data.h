@@ -78,8 +78,12 @@ typedef struct Ship {
     Vector acceleration;
     int mass;
 
+    //ship angle
+    int angle;
+
     //input
     float thrust;
+    int rotation;
 
     //collision
     float radius;

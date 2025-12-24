@@ -62,7 +62,7 @@ void _DrawTrash(SDL_Renderer* renderer, GameState* game_state) {
 }
 
 void _DrawShips(SDL_Renderer* renderer, GameState* game_state) {
-    //render ships as yellow circles with their name and trash amount
+    //render ships as yellow triangles with their name and trash amount
 
     for (int i = 0; i < game_state->n_ships; i++) {
         if (game_state->ships[i].enabled == 0) continue; //dont draw disabled ships
@@ -70,7 +70,23 @@ void _DrawShips(SDL_Renderer* renderer, GameState* game_state) {
         int r,g,b,a;
         r = 255; g = 255; b = 0; a = 255; //yellow for ships
 
-        filledCircleRGBA(renderer, (int)game_state->ships[i].position.x, (int)game_state->ships[i].position.y, (int)game_state->ships[i].radius, r, g, b, a);
+        //ships are yellow triangles pointing in the direction of their velocity
+
+        //convert to rad for sdl
+        float angle_rad = game_state->ships[i].angle * (3.14159265f / 180.0f);
+        //first point is the tip of the ship
+        Sint16 x1 = (Sint16)(game_state->ships[i].position.x + game_state->ships[i].radius * cos(angle_rad));
+        Sint16 y1 = (Sint16)(game_state->ships[i].position.y + game_state->ships[i].radius * sin(angle_rad));
+        //other two points are the back corners
+        Sint16 x2 = (Sint16)(game_state->ships[i].position.x + game_state->ships[i].radius * cos(angle_rad + 2.5f));
+        Sint16 y2 = (Sint16)(game_state->ships[i].position.y + game_state->ships[i].radius * sin(angle_rad + 2.5f));
+        Sint16 x3 = (Sint16)(game_state->ships[i].position.x + game_state->ships[i].radius * cos(angle_rad - 2.5f));
+        Sint16 y3 = (Sint16)(game_state->ships[i].position.y + game_state->ships[i].radius * sin(angle_rad - 2.5f));
+        
+        //draw filled triangle
+        Sint16 vx[3] = {x1, x2, x3};
+        Sint16 vy[3] = {y1, y2, y3};
+        filledPolygonRGBA(renderer, vx, vy, 3, r, g, b, a);
 
         //draw ship name at top-right of ship and trash amount
         char name_text[10];

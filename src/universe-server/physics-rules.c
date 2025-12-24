@@ -16,21 +16,25 @@ void CheckEvents(int* running, GameState* game_state) {
             if (event.key.keysym.sym == SDLK_w) {
                 game_state->ships[0].thrust = 0.10f;
             }
-            if (event.key.keysym.sym == SDLK_s) {
-                game_state->ships[0].thrust = -0.10f;
+            if (event.key.keysym.sym == SDLK_a) {
+                //rotate left
+                game_state->ships[0].rotation = -5.0f;
+            }
+            if (event.key.keysym.sym == SDLK_d) {
+                //rotate right
+                game_state->ships[0].rotation = 5.0f;
             }
         }
         if (event.type == SDL_KEYUP) {
             if (event.key.keysym.sym == SDLK_w) {
                 game_state->ships[0].thrust = 0.0f;
             }
-            if (event.key.keysym.sym == SDLK_s) {
-                game_state->ships[0].thrust = 0.0f;
+            if (event.key.keysym.sym == SDLK_a || event.key.keysym.sym == SDLK_d) {
+                //stop rotation
+                game_state->ships[0].rotation = 0.0f;
             }
         }
-
     }
-
 }
 
 int _IsAnyShipActive(GameState* game_state) {
@@ -185,6 +189,13 @@ void _UpdateTrash(GameState* game_state) {
 
 }
 
+void _NewShipRotation(GameState* game_state) {
+    for (int i = 0; i < game_state->n_ships; i ++) {
+        if (!game_state->ships[i].enabled) continue;
+        game_state->ships[i].angle += game_state->ships[i].rotation;
+    }
+}
+
 void _NewShipAcceleration(GameState* game_state) {
     Vector total_vector_force;
     Vector local_vector_force;
@@ -204,7 +215,7 @@ void _NewShipAcceleration(GameState* game_state) {
         //apply thrust
         Vector thrust_vector;
         thrust_vector.amplitude = game_state->ships[i].thrust / game_state->ships[i].mass;
-        thrust_vector.angle = game_state->ships[i].velocity.angle; //thrust in direction of current velocity
+        thrust_vector.angle = game_state->ships[i].angle; //thrust in direction of the ship
         game_state->ships[i].acceleration = AddVectors(game_state->ships[i].acceleration, thrust_vector);
     }
 }
@@ -249,6 +260,7 @@ void _NewShipPosition(GameState *game_state) {
 
 void _UpdateShips(GameState* game_state) {
 
+    _NewShipRotation(game_state);
     _NewShipAcceleration(game_state);
     _NewShipVelocity(game_state);
     _NewShipPosition(game_state);
