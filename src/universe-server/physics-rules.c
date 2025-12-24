@@ -110,7 +110,7 @@ void _NewTrashPosition(GameState* game_state) {
             float dx = game_state->trashes[i].position.x - game_state->planets[j].position.x;
             float dy = game_state->trashes[i].position.y - game_state->planets[j].position.y;
             float distance = sqrt(dx * dx + dy * dy);
-            if (distance < COLLISION_DISTANCE) {
+            if (distance < TRASH_PLANET_COLLISION_DISTANCE) {
                 //create 2 trashes from the collision (reuse the current trash and create a new one)
                 
                 //add a new trash child into this dog gone universe
@@ -255,6 +255,59 @@ void _NewShipPosition(GameState *game_state) {
         else if (game_state->ships[i].position.y > game_state->universe_size) {
             game_state->ships[i].position.y -= game_state->universe_size;
         }
+        
+        //collision time
+
+        //trash collision
+        for (int j = 0; j < game_state->n_trashes; j++) {
+            float dx = game_state->ships[i].position.x - game_state->trashes[j].position.x;
+            float dy = game_state->ships[i].position.y - game_state->trashes[j].position.y;
+            float distance = sqrt(dx * dx + dy * dy);
+            if (distance < TRASH_SHIP_COLLISION_DISTANCE) {
+                //collect trash
+                game_state->ships[i].trash_amount += 1;
+                //remove trash by swapping with last and reducing count
+                game_state->trashes[j] = game_state->trashes[game_state->n_trashes - 1];
+                game_state->n_trashes--;
+                //since game_state->trashes[j] is now a new trash, we need to check this index again
+                j--;
+            }
+        }
+        //planet collision
+        for (int j = 0; j < game_state->n_planets; j++) {
+
+            float dx = game_state->ships[i].position.x - game_state->planets[j].position.x;
+            float dy = game_state->ships[i].position.y - game_state->planets[j].position.y;
+            float distance = sqrt(dx * dx + dy * dy);
+            if (distance < PLANET_SHIP_COLLISION_DISTANCE) {
+
+                //check if this is the recycler planet
+                if (j == game_state->recycler_planet_index) {
+                    //deposit trash
+                    game_state->planets[j].trash_amount += game_state->ships[i].trash_amount;
+                    game_state->ships[i].trash_amount = 0;
+                    continue; //no trash spill on recycler planet
+                }
+
+                //normal planet collision: drop all trash
+                int dropped_trash = game_state->ships[i].trash_amount;
+                game_state->ships[i].trash_amount = 0;
+
+                //spill trash into universe in random directions
+                for (int t = 0; t < dropped_trash; t++) {
+                    if (game_state->n_trashes >= game_state->max_trash) break;
+                    //place new trash at ship position + radius to stop instant recollection
+                    game_state->trashes[game_state->n_trashes].position.x = game_state->ships[i].position.x + game_state->ships[i].radius +2.0f;
+                    game_state->trashes[game_state->n_trashes].position.y = game_state->ships[i].position.y + game_state->ships[i].radius +2.0f;
+                    //random velocity
+                    game_state->trashes[game_state->n_trashes].velocity.amplitude = ((float)(rand() % 100)) / 100.0f;
+                    game_state->trashes[game_state->n_trashes].velocity.amplitude *= 20.0f;
+                    game_state->trashes[game_state->n_trashes].velocity.angle = ((float)(rand() % 360));
+                    game_state->n_trashes++;
+                }
+            }
+        }
+
     }    
 }
 
