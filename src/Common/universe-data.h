@@ -2,6 +2,8 @@
 #define UNIVERSE_DATA_H
 
 #include <libconfig.h>
+#include <stdint.h>
+#include <SDL2/SDL_image.h>
 
 //default values for universe objects
 #define PLANET_MASS 10
@@ -12,10 +14,21 @@
 #define TRASH_MASS 1
 #define TRASH_RADIUS 4.0f
 
+#define SHIP_RADIUS 10.0f
+#define SHIP_SPEED 10.0f
+
 #define COLLISION_DISTANCE 1.0f
 
 //math constants
 #define PI 3.14159265f
+
+typedef enum Direction {
+    UP,
+    LEFT,
+    DOWN,
+    RIGHT,
+    INVALID_DIRECTION
+} Direction;
 
 //unvierse configuration structure
 typedef struct UniverseConfig {
@@ -39,6 +52,18 @@ typedef struct Vector {
     float angle;
 } Vector;
 
+//Ship structure
+typedef struct Ship{
+    Direction direction;
+    Position Position;
+    float radius;
+    int current_trash;
+    SDL_Texture *imageTexture;
+    
+    char planet_id;
+    int is_active;
+}Ship;
+
 //planet structure
 typedef struct Planet {
     char name;
@@ -57,14 +82,31 @@ typedef struct Trash {
     float radius;
 } Trash;
 
+//Player structure
+typedef struct Player
+{
+    int8_t ID;
+    int shipID;
+    struct Player *nextPlayer;
+}Player;
+
+
 //game state structure (so that we dont pass too many parameters on the main loop)
 typedef struct GameState {
+    
     int universe_size;
     Planet* planets;
     int n_planets;
+    
     Trash *trashes;
     int n_trashes;
     int max_trash;
+
+    Ship* ships;
+    int n_ships;
+    int trash_ship_capacity;
+
+    int max_ships;
 
     int is_game_over;
 } GameState;
@@ -74,6 +116,9 @@ Vector MakeVector(float x, float y);
 
 //Vector addition
 Vector AddVectors(Vector v1, Vector v2);
+
+//initialize ship once a player connects into it
+void InitializeShip(GameState* game_state, int id);
 
 //this function reads universe parameters from the config file with name config_name
 //and stores them in universe_config
@@ -104,6 +149,9 @@ void _PositionTrash(Trash* trashes, int n_trashes, int universe_size, int seed);
 
 //initialize all trash with default values (mass, radius, position, velocity)
 Trash* _InitializeTrash(int n_trashes, int universe_size, int seed);
+
+//initialize all ships with default values (radius, position, current trash, planet id)
+Ship* _InitializeShips(int n_ships, int trash_ship_capacity, Planet* planets);
 
 //create the universe initial state using the universe configuration
 //this function is the only public function related to universe data reading

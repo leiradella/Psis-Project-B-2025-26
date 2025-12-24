@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <SDL2/SDL_image.h>
 
 #include <libconfig.h>
 
@@ -26,6 +27,21 @@ Vector AddVectors(Vector v1, Vector v2) {
 
     //convert back to polar coordinates
     return MakeVector(x_total, y_total);
+}
+
+void InitializeShip(GameState* game_state, int id) {
+    if (id < 0 || id >= game_state->n_ships) {
+        printf("Invalid ship ID %d for initialization.\n", id);
+        return;
+    }
+
+    game_state->ships[id].is_active = 1;
+
+    //Set initial position to the corresponding planet's position
+    game_state->ships[id].Position.x = game_state->planets[id].position.x;
+    game_state->ships[id].Position.y = game_state->planets[id].position.y;
+    
+    game_state->ships[id].current_trash = 0;
 }
 
 int _GetUniverseParameters(const char* config_name, UniverseConfig* universe_config) {
@@ -216,6 +232,29 @@ Trash *_InitializeTrash(int n_trashes, int universe_size, int seed) {
     return trashes;
 }
 
+Ship* _InitializeShips(int n_ships, int trash_ship_capacity, Planet* planets) {
+    //create ship vector
+    Ship* ships = (Ship*)malloc(n_ships * sizeof(Ship));
+    
+    //initialize ship properties
+    for (int i = 0; i < n_ships; i++) {
+        ships[i].radius = SHIP_RADIUS;
+        ships[i].current_trash = 0;
+        ships[i].planet_id = 'A' + i; //each ship starts at its corresponding planet
+        ships[i].is_active = 0; //ships start inactive
+
+        ships[i].direction = INVALID_DIRECTION;
+
+        ships[i].imageTexture = NULL;
+
+        //initialize with their respective planet positions
+        ships[i].Position.x = planets[i].position.x;
+        ships[i].Position.y = planets[i].position.y;
+    }
+
+    return ships;
+}
+
 GameState *CreateInitialUniverseState(const char* config_name, int seed) {
 
     //create a universe config struct with the parameters
@@ -240,6 +279,9 @@ GameState *CreateInitialUniverseState(const char* config_name, int seed) {
     //initialize the trash
     Trash *trashes = _InitializeTrash(universe_config.max_trash, universe_config.universe_size, seed);
 
+    //initialize ships
+    Ship* ships = _InitializeShips(universe_config.n_planets, universe_config.trash_ship_capacity, planets);
+
     //gamestate struct to return
     GameState* game_state = malloc(sizeof(GameState));
     game_state->universe_size = universe_config.universe_size;
@@ -248,6 +290,10 @@ GameState *CreateInitialUniverseState(const char* config_name, int seed) {
     game_state->trashes = trashes;
     game_state->n_trashes = universe_config.starting_trash;
     game_state->max_trash = universe_config.max_trash;
+    game_state->ships = ships;
+    game_state->n_ships = 0;
+    game_state->max_ships = universe_config.n_planets;
+    game_state->trash_ship_capacity = universe_config.trash_ship_capacity;
     game_state->is_game_over = 0;
 
     return game_state;
