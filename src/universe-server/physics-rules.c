@@ -313,6 +313,8 @@ void _NewShipPosition(GameState *game_state) {
 
 void _UpdateShips(GameState* game_state) {
 
+    if (game_state->is_game_over) return; //dont update ships if game over
+
     _NewShipRotation(game_state);
     _NewShipAcceleration(game_state);
     _NewShipVelocity(game_state);
@@ -325,6 +327,8 @@ void _CheckGameOver(GameState* game_state) {
     //were gonna make a text appear on screen
     if (game_state->n_trashes >= game_state->max_trash) {
         game_state->is_game_over = 1;
+
+        //need to send a message to clients to display game over and stop the ships
     }
 }
 
