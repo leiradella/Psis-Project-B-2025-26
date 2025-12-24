@@ -22,3 +22,25 @@ message SimplifiedUniverseData{
     required double freeTrash           = 3;
     required double maxTrash            = 4;
 }
+
+//Connect/disconnect messages
+enum ClientConnectMessageType {
+    CONNECT = 0;
+    DISCONNECT = 1;
+}
+
+enum ServerConnectMessageType {
+    OK = 0;
+    ERROR = 1;
+}
+
+//cliente envia uma mensagem com o tipo (conectar/desconectar)
+message ClientConnectMessage {
+    required ClientConnectMessageType msg_type = 1;
+}
+
+//servidor responde com OK/ERROR e o id da nave de volta
+message ServerConnectMessage {
+    required ServerConnectMessageType msg_type = 1;
+    required bytes id = 2;
+}

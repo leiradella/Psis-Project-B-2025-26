@@ -8,6 +8,7 @@
 #include "universe-data.h"
 #include "physics-rules.h"
 #include "display.h"
+#include "communication.h"
 
 int main(int argc, char* argv[]) {
 
@@ -19,15 +20,24 @@ int main(int argc, char* argv[]) {
 
     //create the universal initial state here using universe_config parameters
     GameState* game_state = CreateInitialUniverseState("universe_config.conf", seed);
-
     if (game_state == NULL) {
         printf("Failed to create initial universe state. Exiting...\n");
+        return 1;
+    }
+
+    //initialize communications
+    CommunicationManager* comm = CommunicationInit(game_state->n_ships); //cant have more clients than ships
+    if (comm == NULL) {
+        printf("Failed to initialize communication manager. Exiting...\n");
+        DestroyUniverse(&game_state);
         return 1;
     }
 
     //Initalize SDL
     if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
         printf("SDL_Init Error: %s\n", SDL_GetError());
+        DestroyUniverse(&game_state);
+        CommunicationQuit(&comm);
         return 1;
     }
 
@@ -35,6 +45,8 @@ int main(int argc, char* argv[]) {
     if (TTF_Init() != 0) {
         printf("TTF_Init Error: %s\n", TTF_GetError());
         SDL_Quit();
+        DestroyUniverse(&game_state);
+        CommunicationQuit(&comm);
         return 1;
     }
 
@@ -42,9 +54,11 @@ int main(int argc, char* argv[]) {
     TTF_Font* font = TTF_OpenFont("arial.ttf", 12);
     if (font == NULL) {
         printf("Failed to load font: %s\n", TTF_GetError());
+        SDL_Quit();
+        DestroyUniverse(&game_state);
+        CommunicationQuit(&comm);
         exit(1);
     }
-    
     game_state->font = font;
 
     //create SDL_window variable
@@ -56,11 +70,12 @@ int main(int argc, char* argv[]) {
         game_state->universe_size, 
         SDL_WINDOW_SHOWN
     );
-
-    //check if window was created successfully
+        //check if window was created successfully
     if (window == NULL) {
         printf("SDL_CreateWindow Error: %s\n", SDL_GetError());
         SDL_Quit();
+        DestroyUniverse(&game_state);
+        CommunicationQuit(&comm);
         return 1;
     }
 
@@ -71,6 +86,8 @@ int main(int argc, char* argv[]) {
         SDL_DestroyWindow(window);
         printf("SDL_CreateRenderer Error: %s\n", SDL_GetError());
         SDL_Quit();
+        DestroyUniverse(&game_state);
+        CommunicationQuit(&comm);
         return 1;
     }
 
@@ -126,6 +143,8 @@ int main(int argc, char* argv[]) {
     //free allocated universe state memory
     DestroyUniverse(&game_state);
 
+    //cleanup comms
+    CommunicationQuit(&comm);
 
     //destroy SDL variables and quit SDL
     TTF_CloseFont(game_state->font);

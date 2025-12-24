@@ -9,7 +9,7 @@ ZMQFLAGS = -lzmq
 PROTOCFLAGS = -lprotobuf-c
 
 TARGET = universe-server
-SRCS = universe-server.c universe-data.c physics-rules.c display.c
+SRCS = universe-server.c universe-data.c physics-rules.c display.c communication.c ../msgB.pb-c.c
 
 all: $(TARGET)
 

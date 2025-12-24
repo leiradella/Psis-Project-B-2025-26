@@ -142,6 +142,96 @@ void   simplified_universe_data__free_unpacked
   assert(message->base.descriptor == &simplified_universe_data__descriptor);
   protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
 }
+void   client_connect_message__init
+                     (ClientConnectMessage         *message)
+{
+  static const ClientConnectMessage init_value = CLIENT_CONNECT_MESSAGE__INIT;
+  *message = init_value;
+}
+size_t client_connect_message__get_packed_size
+                     (const ClientConnectMessage *message)
+{
+  assert(message->base.descriptor == &client_connect_message__descriptor);
+  return protobuf_c_message_get_packed_size ((const ProtobufCMessage*)(message));
+}
+size_t client_connect_message__pack
+                     (const ClientConnectMessage *message,
+                      uint8_t       *out)
+{
+  assert(message->base.descriptor == &client_connect_message__descriptor);
+  return protobuf_c_message_pack ((const ProtobufCMessage*)message, out);
+}
+size_t client_connect_message__pack_to_buffer
+                     (const ClientConnectMessage *message,
+                      ProtobufCBuffer *buffer)
+{
+  assert(message->base.descriptor == &client_connect_message__descriptor);
+  return protobuf_c_message_pack_to_buffer ((const ProtobufCMessage*)message, buffer);
+}
+ClientConnectMessage *
+       client_connect_message__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data)
+{
+  return (ClientConnectMessage *)
+     protobuf_c_message_unpack (&client_connect_message__descriptor,
+                                allocator, len, data);
+}
+void   client_connect_message__free_unpacked
+                     (ClientConnectMessage *message,
+                      ProtobufCAllocator *allocator)
+{
+  if(!message)
+    return;
+  assert(message->base.descriptor == &client_connect_message__descriptor);
+  protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
+}
+void   server_connect_message__init
+                     (ServerConnectMessage         *message)
+{
+  static const ServerConnectMessage init_value = SERVER_CONNECT_MESSAGE__INIT;
+  *message = init_value;
+}
+size_t server_connect_message__get_packed_size
+                     (const ServerConnectMessage *message)
+{
+  assert(message->base.descriptor == &server_connect_message__descriptor);
+  return protobuf_c_message_get_packed_size ((const ProtobufCMessage*)(message));
+}
+size_t server_connect_message__pack
+                     (const ServerConnectMessage *message,
+                      uint8_t       *out)
+{
+  assert(message->base.descriptor == &server_connect_message__descriptor);
+  return protobuf_c_message_pack ((const ProtobufCMessage*)message, out);
+}
+size_t server_connect_message__pack_to_buffer
+                     (const ServerConnectMessage *message,
+                      ProtobufCBuffer *buffer)
+{
+  assert(message->base.descriptor == &server_connect_message__descriptor);
+  return protobuf_c_message_pack_to_buffer ((const ProtobufCMessage*)message, buffer);
+}
+ServerConnectMessage *
+       server_connect_message__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data)
+{
+  return (ServerConnectMessage *)
+     protobuf_c_message_unpack (&server_connect_message__descriptor,
+                                allocator, len, data);
+}
+void   server_connect_message__free_unpacked
+                     (ServerConnectMessage *message,
+                      ProtobufCAllocator *allocator)
+{
+  if(!message)
+    return;
+  assert(message->base.descriptor == &server_connect_message__descriptor);
+  protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
+}
 static const ProtobufCFieldDescriptor client__field_descriptors[2] =
 {
   {
@@ -346,4 +436,149 @@ const ProtobufCMessageDescriptor simplified_universe_data__descriptor =
   1,  simplified_universe_data__number_ranges,
   (ProtobufCMessageInit) simplified_universe_data__init,
   NULL,NULL,NULL    /* reserved[123] */
+};
+static const ProtobufCFieldDescriptor client_connect_message__field_descriptors[1] =
+{
+  {
+    "msg_type",
+    1,
+    PROTOBUF_C_LABEL_REQUIRED,
+    PROTOBUF_C_TYPE_ENUM,
+    0,   /* quantifier_offset */
+    offsetof(ClientConnectMessage, msg_type),
+    &client_connect_message_type__descriptor,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+};
+static const unsigned client_connect_message__field_indices_by_name[] = {
+  0,   /* field[0] = msg_type */
+};
+static const ProtobufCIntRange client_connect_message__number_ranges[1 + 1] =
+{
+  { 1, 0 },
+  { 0, 1 }
+};
+const ProtobufCMessageDescriptor client_connect_message__descriptor =
+{
+  PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
+  "ClientConnectMessage",
+  "ClientConnectMessage",
+  "ClientConnectMessage",
+  "",
+  sizeof(ClientConnectMessage),
+  1,
+  client_connect_message__field_descriptors,
+  client_connect_message__field_indices_by_name,
+  1,  client_connect_message__number_ranges,
+  (ProtobufCMessageInit) client_connect_message__init,
+  NULL,NULL,NULL    /* reserved[123] */
+};
+static const ProtobufCFieldDescriptor server_connect_message__field_descriptors[2] =
+{
+  {
+    "msg_type",
+    1,
+    PROTOBUF_C_LABEL_REQUIRED,
+    PROTOBUF_C_TYPE_ENUM,
+    0,   /* quantifier_offset */
+    offsetof(ServerConnectMessage, msg_type),
+    &server_connect_message_type__descriptor,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "id",
+    2,
+    PROTOBUF_C_LABEL_REQUIRED,
+    PROTOBUF_C_TYPE_BYTES,
+    0,   /* quantifier_offset */
+    offsetof(ServerConnectMessage, id),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+};
+static const unsigned server_connect_message__field_indices_by_name[] = {
+  1,   /* field[1] = id */
+  0,   /* field[0] = msg_type */
+};
+static const ProtobufCIntRange server_connect_message__number_ranges[1 + 1] =
+{
+  { 1, 0 },
+  { 0, 2 }
+};
+const ProtobufCMessageDescriptor server_connect_message__descriptor =
+{
+  PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
+  "ServerConnectMessage",
+  "ServerConnectMessage",
+  "ServerConnectMessage",
+  "",
+  sizeof(ServerConnectMessage),
+  2,
+  server_connect_message__field_descriptors,
+  server_connect_message__field_indices_by_name,
+  1,  server_connect_message__number_ranges,
+  (ProtobufCMessageInit) server_connect_message__init,
+  NULL,NULL,NULL    /* reserved[123] */
+};
+static const ProtobufCEnumValue client_connect_message_type__enum_values_by_number[2] =
+{
+  { "CONNECT", "CLIENT_CONNECT_MESSAGE_TYPE__CONNECT", 0 },
+  { "DISCONNECT", "CLIENT_CONNECT_MESSAGE_TYPE__DISCONNECT", 1 },
+};
+static const ProtobufCIntRange client_connect_message_type__value_ranges[] = {
+{0, 0},{0, 2}
+};
+static const ProtobufCEnumValueIndex client_connect_message_type__enum_values_by_name[2] =
+{
+  { "CONNECT", 0 },
+  { "DISCONNECT", 1 },
+};
+const ProtobufCEnumDescriptor client_connect_message_type__descriptor =
+{
+  PROTOBUF_C__ENUM_DESCRIPTOR_MAGIC,
+  "ClientConnectMessageType",
+  "ClientConnectMessageType",
+  "ClientConnectMessageType",
+  "",
+  2,
+  client_connect_message_type__enum_values_by_number,
+  2,
+  client_connect_message_type__enum_values_by_name,
+  1,
+  client_connect_message_type__value_ranges,
+  NULL,NULL,NULL,NULL   /* reserved[1234] */
+};
+static const ProtobufCEnumValue server_connect_message_type__enum_values_by_number[2] =
+{
+  { "OK", "SERVER_CONNECT_MESSAGE_TYPE__OK", 0 },
+  { "ERROR", "SERVER_CONNECT_MESSAGE_TYPE__ERROR", 1 },
+};
+static const ProtobufCIntRange server_connect_message_type__value_ranges[] = {
+{0, 0},{0, 2}
+};
+static const ProtobufCEnumValueIndex server_connect_message_type__enum_values_by_name[2] =
+{
+  { "ERROR", 1 },
+  { "OK", 0 },
+};
+const ProtobufCEnumDescriptor server_connect_message_type__descriptor =
+{
+  PROTOBUF_C__ENUM_DESCRIPTOR_MAGIC,
+  "ServerConnectMessageType",
+  "ServerConnectMessageType",
+  "ServerConnectMessageType",
+  "",
+  2,
+  server_connect_message_type__enum_values_by_number,
+  2,
+  server_connect_message_type__enum_values_by_name,
+  1,
+  server_connect_message_type__value_ranges,
+  NULL,NULL,NULL,NULL   /* reserved[1234] */
 };

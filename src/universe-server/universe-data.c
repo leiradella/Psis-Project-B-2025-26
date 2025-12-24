@@ -309,6 +309,9 @@ GameState *CreateInitialUniverseState(const char* config_name, int seed) {
 
     game_state->is_game_over = 0;
 
+    game_state->rep_port = universe_config.rep_port;
+    game_state->pub_port = universe_config.pub_port;
+
     game_state->ships[0].enabled = 1; //enable the first ship for testing
 
     return game_state;

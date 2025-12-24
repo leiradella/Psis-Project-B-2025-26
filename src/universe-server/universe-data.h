@@ -118,6 +118,9 @@ typedef struct GameState {
     int is_game_over;
     TTF_Font* font;
 
+    int rep_port;
+    int pub_port;
+
 } GameState;
 
 //Vector creation from x and y components
