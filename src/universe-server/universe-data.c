@@ -221,7 +221,7 @@ Trash *_InitializeTrash(int n_trashes, int universe_size, int seed) {
     return trashes;
 }
 
-Ship *_InitializeShips(Planet* planets, int n_ships, int seed) {
+Ship *_InitializeShips(Planet* planets, int n_ships, int universe_size, int seed) {
     (void)seed;
 
     //create ship vector
@@ -237,9 +237,10 @@ Ship *_InitializeShips(Planet* planets, int n_ships, int seed) {
         //give ships names based on home planet (same name = home planet)
         ships[i].name = planets[i].name;
 
-        //initial position at invalid coords CHECK THIS AGAIN LATER LMFAO
-        ships[i].position.x = planets[i].position.x+0.01f; 
-        ships[i].position.y = planets[i].position.y+0.01f;
+        //we cant spawn the ship inside the planet due to the laws of physics (lol)
+        //so we just place it at the center of the universe
+        ships[i].position.x =  universe_size / 2.0f;
+        ships[i].position.y =  universe_size / 2.0f;
 
         //no initial velocity or acceleration or trash
         ships[i].velocity.amplitude = 0.0f;
@@ -282,7 +283,7 @@ GameState *CreateInitialUniverseState(const char* config_name, int seed) {
     Trash *trashes = _InitializeTrash(universe_config.max_trash, universe_config.universe_size, seed);
 
     //initialize the ships
-    Ship* ships = _InitializeShips(planets, universe_config.n_planets, seed); 
+    Ship* ships = _InitializeShips(planets, universe_config.n_planets, universe_config.universe_size, seed); 
 
     //gamestate struct to return
     GameState* game_state = malloc(sizeof(GameState));
