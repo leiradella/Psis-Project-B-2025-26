@@ -10,9 +10,8 @@
 
 typedef struct ClientID {
     //ZMQ identity for ROUTER socket
-    uint8_t identity[256];  //Store client's ZMQ identity
-    size_t identity_size;   //Size of identity frame
 
+    int connection_id;
     char ship_id;
 
 } ClientID;
@@ -45,7 +44,7 @@ void CommunicationQuit(CommunicationManager** comm);
 //Process incoming client messages (connect, disconnect, moves)
 //Uses zmq_poll to check for messages without blocking
 //Returns: 1 if message processed, 0 if no message, -1 on error
-int client_receive_and_process(CommunicationManager* comm);
+int ReceiveClientConnection(CommunicationManager* comm);
 
 //Send response to client (connection response or move acknowledgment)
 //Uses ZMQ identity of last received message to route reply

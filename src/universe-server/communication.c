@@ -43,8 +43,8 @@ CommunicationManager* CommunicationInit(GameState* state) {
     
     //Mark all slots as empty (ship_id = 0 means empty)
     for (int i = 0; i < max_clients; i++) {
-        comm->clients[i].ship_id = 0;
-        comm->clients[i].identity_size = 0;
+        comm->clients[i].ship_id = -1;
+        comm->clients[i].connection_id = -1;
     }
 
     //initialize client sockets
@@ -56,7 +56,7 @@ CommunicationManager* CommunicationInit(GameState* state) {
     snprintf(router_port_str, sizeof(router_port_str), "tcp://*:%d", state->router_port);
     snprintf(pub_port_str, sizeof(pub_port_str), "tcp://*:%d", state->pub_port);
 
-    comm->client_router_socket = zmq_socket(comm->context, ZMQ_ROUTER);
+    comm->client_router_socket = zmq_socket(comm->context, ZMQ_REP);
     zmq_bind(comm->client_router_socket, router_port_str);
 
     comm->client_pub_socket = zmq_socket(comm->context, ZMQ_PUB);
@@ -106,159 +106,94 @@ void CommunicationQuit(CommunicationManager** comm) {
     *comm = NULL;
 }
 
-int client_receive_and_process(CommunicationManager* comm) {
+void _ProcessClientConnect(CommunicationManager* comm) {
+    //process a connection request from a client
+    //check for an empty slot
+    int slot = -1;
+    for (int i=0; i<comm->max_clients; i++) {
+        if (comm->clients[i].ship_id == -1) {
+            slot = i;
+            break;
+        }
+    }
+
+    //create a message (we always send a response)
+    ServerConnectMessage response = SERVER_CONNECT_MESSAGE__INIT;
+    ServerConnectMessageType msg_type;
+    char ship_id[2];
+
+    if (slot == -1) {
+        //error response
+        msg_type = SERVER_CONNECT_ERROR;
+        ship_id[0] = '0';
+        ship_id[1] = '\0';
+    } else {
+        //communication manager updates
+        comm->num_connected++;
+        comm->clients[slot].ship_id = 'A' + slot;  //Assign ship ID as name
+        comm->clients[slot].connection_id = slot;
+
+        //prepare success response
+        msg_type = SERVER_CONNECT_OK;
+        ship_id[0] = comm->clients[slot].ship_id;
+        ship_id[1] = '\0';
+
+    }
+
+    //send message along with assigned ship ID (ID = '0' if error)
+    response.id = strdup(ship_id);
+    response.msg_type = msg_type;
+
+    //serialize protobuf message into zmq message and send
+    int msg_len = server_connect_message__get_packed_size(&response);
+    uint8_t* msg_buf = (uint8_t*)malloc(msg_len);
+    server_connect_message__pack(&response, msg_buf);
+    zmq_send(comm->client_router_socket, msg_buf, msg_len, 0);
+
+    free(msg_buf);
+    return;
+}
+
+void _ProcessClientDisconnect(CommunicationManager* comm) {
+    //process a disconnection request from a client
+    (void)comm;
+}
+
+int ReceiveClientConnection(CommunicationManager* comm) {
     if (comm == NULL || comm->client_router_socket == NULL) {
         return -1;
     }
 
-    //ROUTER receives multi-part message: [identity][empty][data]
-    zmq_msg_t identity_msg, empty_msg, data_msg;
-    
-    //Receive identity frame
-    zmq_msg_init(&identity_msg);
-    int id_len = zmq_msg_recv(&identity_msg, comm->client_router_socket, 0);
-    if (id_len == -1) {
-        zmq_msg_close(&identity_msg);
-        return -1;
-    }
-    
-    //Receive empty delimiter frame
-    zmq_msg_init(&empty_msg);
-    int empty_len = zmq_msg_recv(&empty_msg, comm->client_router_socket, 0);
-    if (empty_len == -1) {
-        zmq_msg_close(&identity_msg);
-        zmq_msg_close(&empty_msg);
-        return -1;
-    }
-    
-    //Receive actual data frame
-    zmq_msg_init(&data_msg);
-    int data_len = zmq_msg_recv(&data_msg, comm->client_router_socket, 0);
-    if (data_len == -1) {
-        zmq_msg_close(&identity_msg);
-        zmq_msg_close(&empty_msg);
-        zmq_msg_close(&data_msg);
-        return -1;
-    }
-    
-    //Extract identity
-    void* identity_data = zmq_msg_data(&identity_msg);
-    size_t identity_size = zmq_msg_size(&identity_msg);
-    
-    //Extract message data
-    void* msg_data = zmq_msg_data(&data_msg);
-    ClientConnectMessage* connect_msg = client_connect_message__unpack(NULL, data_len, msg_data);
-    
-    if (connect_msg == NULL) {
-        zmq_msg_close(&identity_msg);
-        zmq_msg_close(&empty_msg);
-        zmq_msg_close(&data_msg);
-        return -1;
-    }
+    zmq_msg_t msg;
+    zmq_msg_init(&msg);
 
-    //Process message based on type
+    //client message
+    ClientConnectMessage* connect_msg;
+    
+    //receive message
+    int msg_len = zmq_recvmsg(comm->client_router_socket, &msg, 0);
+
+    //unpack contents
+    void* msg_data = zmq_msg_data(&msg);
+    connect_msg = client_connect_message__unpack(NULL, msg_len, msg_data);
+
+
+    int return_value = -1;
+    //process message
     if (connect_msg->msg_type == CLIENT_CONNECT) {
-        //Find available slot and assign ID
-        int slot = -1;
-        for (int i = 0; i < comm->max_clients; i++) {
-            if (comm->clients[i].ship_id == 0) {
-                slot = i;
-                break;
-            }
-        }
-        
-        ServerConnectMessage response_msg = SERVER_CONNECT_MESSAGE__INIT;
-
-        if (slot == -1) {
-            printf("Server full\n");
-
-            response_msg.msg_type = SERVER_CONNECT_ERROR;
-            char ship_id_str[2] = {'0', '\0'};
-            response_msg.id = strdup(ship_id_str);
-
-        } else {
-            //Store client identity and assign ship_id
-            comm->clients[slot].ship_id = 'A' + slot;
-            comm->clients[slot].identity_size = identity_size;
-            memcpy(comm->clients[slot].identity, identity_data, identity_size);
-            comm->num_connected++;
-            
-            printf("Client connected: assigned ID '%c'\n", comm->clients[slot].ship_id);
-
-            response_msg.msg_type = SERVER_CONNECT_OK;
-            char ship_id_str[2] = {comm->clients[slot].ship_id, '\0'};
-            response_msg.id = strdup(ship_id_str);
-        }
-
-        client_send_response(comm, &response_msg, (uint8_t*)identity_data, identity_size);
-
-
+        printf("CLIENT CONNECTED\n");
+        _ProcessClientConnect(comm);
+        return_value = 1;
     } else if (connect_msg->msg_type == CLIENT_DISCONNECT) {
-        //Find client by identity
-        int slot = -1;
-        for (int i = 0; i < comm->max_clients; i++) {
-            if (comm->clients[i].identity_size == identity_size &&
-                memcmp(comm->clients[i].identity, identity_data, identity_size) == 0) {
-                slot = i;
-                break;
-            }
-        }
-        
-        if (slot != -1) {
-            printf("Client '%c' disconnected\n", comm->clients[slot].ship_id);
-            comm->clients[slot].ship_id = 0;
-            comm->clients[slot].identity_size = 0;
-            comm->num_connected--;
-        }
-
+        printf("CLIENT DISCONNECTED\n");
+        _ProcessClientDisconnect(comm);
+        return_value = 1;
     } else {
-        printf("Unknown message type\n");
+        //unknown message type
+        return_value = -1;
     }
-    
-    //Cleanup
+
     client_connect_message__free_unpacked(connect_msg, NULL);
-    zmq_msg_close(&identity_msg);
-    zmq_msg_close(&empty_msg);
-    zmq_msg_close(&data_msg);
-    
-    return 1;
-}
-
-int client_send_response(CommunicationManager* comm, ServerConnectMessage* msg, uint8_t* identity, size_t identity_size) {
-    if (comm == NULL || comm->client_router_socket == NULL || msg == NULL) {
-        return -1;
-    }
-
-    //serialize message
-    size_t msg_size = server_connect_message__get_packed_size(msg);
-    uint8_t* buffer = malloc(msg_size);
-    if (buffer == NULL) {
-        return -1;
-    }
-    server_connect_message__pack(msg, buffer);
-
-    //send multi-part message: [identity][empty][data]
-    zmq_msg_t identity_msg, empty_msg, data_msg;
-
-    //identity frame
-    zmq_msg_init_size(&identity_msg, identity_size);
-    memcpy(zmq_msg_data(&identity_msg), identity, identity_size);
-    zmq_msg_send(&identity_msg, comm->client_router_socket, ZMQ_SNDMORE);
-    zmq_msg_close(&identity_msg);
-
-    //empty delimiter frame
-    zmq_msg_init_size(&empty_msg, 0);
-    zmq_msg_send(&empty_msg, comm->client_router_socket, ZMQ_SNDMORE);
-    zmq_msg_close(&empty_msg);
-
-    //data frame
-    zmq_msg_init_size(&data_msg, msg_size);
-    memcpy(zmq_msg_data(&data_msg), buffer, msg_size);
-    zmq_msg_send(&data_msg, comm->client_router_socket, 0);
-    zmq_msg_close(&data_msg);
-    
-    free(msg->id);
-    free(buffer);
-
-    return 0;
+    zmq_msg_close(&msg);
+    return return_value;
 }

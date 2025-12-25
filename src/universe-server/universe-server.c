@@ -33,6 +33,8 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    ReceiveClientConnection(comm); //test receiving client connections
+
     //Initalize SDL
     if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
         printf("SDL_Init Error: %s\n", SDL_GetError());
