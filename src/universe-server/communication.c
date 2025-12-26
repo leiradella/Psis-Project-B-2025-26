@@ -58,14 +58,14 @@ CommunicationManager* CommunicationInit(GameState* state) {
     //initialize client sockets
 
     //create a string for the ports
-    char router_port_str[16];
+    char rep_port_str[16];
     char pub_port_str[16];
 
-    snprintf(router_port_str, sizeof(router_port_str), "tcp://*:%d", state->router_port);
+    snprintf(rep_port_str, sizeof(rep_port_str), "tcp://*:%d", state->rep_port);
     snprintf(pub_port_str, sizeof(pub_port_str), "tcp://*:%d", state->pub_port);
 
     comm->client_rep_socket = zmq_socket(comm->context, ZMQ_REP);
-    zmq_bind(comm->client_rep_socket, router_port_str);
+    zmq_bind(comm->client_rep_socket, rep_port_str);
 
     comm->client_pub_socket = zmq_socket(comm->context, ZMQ_PUB);
     zmq_bind(comm->client_pub_socket, pub_port_str);
@@ -161,9 +161,9 @@ void _ProcessClientConnect(CommunicationManager* comm) {
         comm->clients[slot].connection_id = strdup(id);
 
         //enable ship in gamestate (lock because is_active is accessed by other threads)
-        pthread_mutex_lock(&comm->game_state->mutex);
+        pthread_mutex_lock(&comm->game_state->mutex_enable);
         comm->game_state->ships[slot].enabled = 1;
-        pthread_mutex_unlock(&comm->game_state->mutex);
+        pthread_mutex_unlock(&comm->game_state->mutex_enable);
         //now when the client sends a move message with this id, we move ship at ship_index
         //when a new client connects they are guaranteed to not get the same ship index
 
@@ -211,9 +211,9 @@ void _ProcessClientDisconnect(CommunicationManager* comm, char* client_id) {
         comm->clients[slot].connection_id = NULL;
 
         //disable ship in gamestate (lock because is_active is accessed by other threads)
-        pthread_mutex_lock(&comm->game_state->mutex);
+        pthread_mutex_lock(&comm->game_state->mutex_enable);
         comm->game_state->ships[slot].enabled = 0;
-        pthread_mutex_unlock(&comm->game_state->mutex);
+        pthread_mutex_unlock(&comm->game_state->mutex_enable);
 
         //need to send response
         ServerMessageType msg_type = SERVER_CONNECT_OK;
@@ -237,12 +237,57 @@ void _ProcessClientDisconnect(CommunicationManager* comm, char* client_id) {
     }
 }
 
-void _ProcessClientMove(CommunicationManager* comm, char* client_id, uint64_t keys) {
-    (void)comm;
-    (void)client_id;
-    (void)keys;
+void _ProcessClientMove(CommunicationManager* comm, char* client_id, protobuf_c_boolean* keys) {
 
-    //later
+    //find the slot with the client_id to get the ship index
+    int slot = -1;
+    for (int i=0; i<comm->max_clients; i++) {
+        char* id = comm->clients[i].connection_id;
+        if (strcasecmp(id, client_id) == 0) {
+            slot = i;
+            break;
+        }
+    }
+
+    if (slot == -1) {
+        //unknown client_id, ignore
+        return;
+    } else {
+
+        //decypher keys
+        //lock
+        pthread_mutex_lock(&comm->game_state->mutex_keys);
+
+        //first 4 keydowns: w, a, s, d
+        if (keys[0]) comm->game_state->ships[slot].thrust = 0.10f;
+        if (keys[1]) comm->game_state->ships[slot].rotation = -5.0f;
+        if (keys[2]) comm->game_state->ships[slot].thrust = 0.0f;
+        if (keys[3]) comm->game_state->ships[slot].rotation = 5.0f;
+
+        //4 keyups: w, a, s, d
+        if (keys[4]) comm->game_state->ships[slot].thrust = 0.0f;
+        if (keys[5]) comm->game_state->ships[slot].rotation = 0.0f;
+        if (keys[6]) comm->game_state->ships[slot].thrust = 0.0f;
+        if (keys[7]) comm->game_state->ships[slot].rotation = 0.0f;
+
+        //unlock
+        pthread_mutex_unlock(&comm->game_state->mutex_keys);
+    }
+
+    //send response
+    ServerMessage response = SERVER_MESSAGE__INIT;
+    response.id = strdup(client_id);
+    response.msg_type = SERVER_CONNECT_OK;
+
+    //serialize protobuf message into zmq message and send
+    int msg_len = server_message__get_packed_size(&response);
+    uint8_t* msg_buf = (uint8_t*)malloc(msg_len);
+    server_message__pack(&response, msg_buf);
+    zmq_send(comm->client_rep_socket, msg_buf, msg_len, 0);
+
+    free(response.id);
+    free(msg_buf);
+    return;
 }
 
 int ReceiveClientMessage(CommunicationManager* comm) {
@@ -277,7 +322,19 @@ int ReceiveClientMessage(CommunicationManager* comm) {
     } else if (client_msg->msg_type == CLIENT_MOVE) {
         //process move message
         printf("CLIENT MOVE MESSAGE RECEIVED\n");
-        _ProcessClientMove(comm, client_msg->id, client_msg->keys);
+
+        //transform the keys into an array of booleans
+        protobuf_c_boolean keys[8];
+        keys[0] = client_msg->wkeydown;
+        keys[1] = client_msg->akeydown;
+        keys[2] = client_msg->skeydown;
+        keys[3] = client_msg->dkeydown;
+        keys[4] = client_msg->wkeyup;
+        keys[5] = client_msg->akeyup;
+        keys[6] = client_msg->skeyup;
+        keys[7] = client_msg->dkeyup;
+
+        _ProcessClientMove(comm, client_msg->id, keys);
         return_value = 1;
     } else {
         //unknown message type

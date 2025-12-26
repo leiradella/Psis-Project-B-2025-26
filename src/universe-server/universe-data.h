@@ -37,7 +37,7 @@ typedef struct UniverseConfig {
     int planet_change_rate_s; //recycle planet change rate in seconds
 
     //client requests
-    int router_port;
+    int rep_port;
 
     //server broadcast publishing for the gamestate
     int pub_port;
@@ -120,11 +120,12 @@ typedef struct GameState {
     int is_game_over;
     TTF_Font* font;
 
-    int router_port;
+    int rep_port;
     int pub_port;
 
     //mutex for thread safety
-    pthread_mutex_t mutex;
+    pthread_mutex_t mutex_enable; //for enabling/disabling ships
+    pthread_mutex_t mutex_keys;   //for updating ship controls with client input
 
 } GameState;
 

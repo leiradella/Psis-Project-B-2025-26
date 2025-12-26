@@ -46,6 +46,39 @@ int main(int argc, char* argv[]) {
     server_message__free_unpacked(response, NULL);
 
 
+    //tell the server to always rotate the ship lol
+    while (1) {
+        //create move message
+        ClientMessage move_msg = CLIENT_MESSAGE__INIT;
+        move_msg.msg_type = CLIENT_MESSAGE_TYPE__MOVE;
+        move_msg.id = strdup(id);
+
+        //set keys: always rotate right
+        move_msg.wkeydown = 0;
+        move_msg.akeydown = 0;
+        move_msg.skeydown = 0;
+        move_msg.dkeydown = 1;
+
+        move_msg.wkeyup = 0;
+        move_msg.akeyup = 0;
+        move_msg.skeyup = 0;
+        move_msg.dkeyup = 0;
+
+        int move_msg_len = client_message__get_packed_size(&move_msg);
+        uint8_t* move_msg_buf = (uint8_t*)malloc(move_msg_len);
+        client_message__pack(&move_msg, move_msg_buf);
+        zmq_send(socket, move_msg_buf, move_msg_len, 0);
+        free(move_msg.id);
+        free(move_msg_buf);
+
+        //receive response
+        recv_len = zmq_recv(socket, recv_buf, sizeof(recv_buf), 0);
+        response = server_message__unpack(NULL, recv_len, recv_buf);
+        printf("Received move response: type=%d, id=%s\n", response->msg_type, response->id);
+        server_message__free_unpacked(response, NULL);
+    }
+
+
 
     //now send a disconnect message
     ClientMessage disc_msg = CLIENT_MESSAGE__INIT;

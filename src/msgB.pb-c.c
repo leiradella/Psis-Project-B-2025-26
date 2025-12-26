@@ -437,7 +437,7 @@ const ProtobufCMessageDescriptor simplified_universe_data__descriptor =
   (ProtobufCMessageInit) simplified_universe_data__init,
   NULL,NULL,NULL    /* reserved[123] */
 };
-static const ProtobufCFieldDescriptor client_message__field_descriptors[3] =
+static const ProtobufCFieldDescriptor client_message__field_descriptors[10] =
 {
   {
     "msg_type",
@@ -464,12 +464,96 @@ static const ProtobufCFieldDescriptor client_message__field_descriptors[3] =
     0,NULL,NULL    /* reserved1,reserved2, etc */
   },
   {
-    "keys",
+    "wKeyDown",
     3,
     PROTOBUF_C_LABEL_REQUIRED,
-    PROTOBUF_C_TYPE_UINT64,
+    PROTOBUF_C_TYPE_BOOL,
     0,   /* quantifier_offset */
-    offsetof(ClientMessage, keys),
+    offsetof(ClientMessage, wkeydown),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "aKeyDown",
+    4,
+    PROTOBUF_C_LABEL_REQUIRED,
+    PROTOBUF_C_TYPE_BOOL,
+    0,   /* quantifier_offset */
+    offsetof(ClientMessage, akeydown),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "sKeyDown",
+    5,
+    PROTOBUF_C_LABEL_REQUIRED,
+    PROTOBUF_C_TYPE_BOOL,
+    0,   /* quantifier_offset */
+    offsetof(ClientMessage, skeydown),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "dKeyDown",
+    6,
+    PROTOBUF_C_LABEL_REQUIRED,
+    PROTOBUF_C_TYPE_BOOL,
+    0,   /* quantifier_offset */
+    offsetof(ClientMessage, dkeydown),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "wKeyUp",
+    7,
+    PROTOBUF_C_LABEL_REQUIRED,
+    PROTOBUF_C_TYPE_BOOL,
+    0,   /* quantifier_offset */
+    offsetof(ClientMessage, wkeyup),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "aKeyUp",
+    8,
+    PROTOBUF_C_LABEL_REQUIRED,
+    PROTOBUF_C_TYPE_BOOL,
+    0,   /* quantifier_offset */
+    offsetof(ClientMessage, akeyup),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "sKeyUp",
+    9,
+    PROTOBUF_C_LABEL_REQUIRED,
+    PROTOBUF_C_TYPE_BOOL,
+    0,   /* quantifier_offset */
+    offsetof(ClientMessage, skeyup),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "dKeyUp",
+    10,
+    PROTOBUF_C_LABEL_REQUIRED,
+    PROTOBUF_C_TYPE_BOOL,
+    0,   /* quantifier_offset */
+    offsetof(ClientMessage, dkeyup),
     NULL,
     NULL,
     0,             /* flags */
@@ -477,14 +561,21 @@ static const ProtobufCFieldDescriptor client_message__field_descriptors[3] =
   },
 };
 static const unsigned client_message__field_indices_by_name[] = {
+  3,   /* field[3] = aKeyDown */
+  7,   /* field[7] = aKeyUp */
+  5,   /* field[5] = dKeyDown */
+  9,   /* field[9] = dKeyUp */
   1,   /* field[1] = id */
-  2,   /* field[2] = keys */
   0,   /* field[0] = msg_type */
+  4,   /* field[4] = sKeyDown */
+  8,   /* field[8] = sKeyUp */
+  2,   /* field[2] = wKeyDown */
+  6,   /* field[6] = wKeyUp */
 };
 static const ProtobufCIntRange client_message__number_ranges[1 + 1] =
 {
   { 1, 0 },
-  { 0, 3 }
+  { 0, 10 }
 };
 const ProtobufCMessageDescriptor client_message__descriptor =
 {
@@ -494,7 +585,7 @@ const ProtobufCMessageDescriptor client_message__descriptor =
   "ClientMessage",
   "",
   sizeof(ClientMessage),
-  3,
+  10,
   client_message__field_descriptors,
   client_message__field_indices_by_name,
   1,  client_message__number_ranges,

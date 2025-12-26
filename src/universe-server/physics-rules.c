@@ -11,29 +11,6 @@ void CheckEvents(int* running, GameState* game_state) {
             printf("Quit event received. Exiting...\n");
             *running = 0;
         }
-
-        if (event.type == SDL_KEYDOWN) {
-            if (event.key.keysym.sym == SDLK_w) {
-                game_state->ships[0].thrust = 0.10f;
-            }
-            if (event.key.keysym.sym == SDLK_a) {
-                //rotate left
-                game_state->ships[0].rotation = -5.0f;
-            }
-            if (event.key.keysym.sym == SDLK_d) {
-                //rotate right
-                game_state->ships[0].rotation = 5.0f;
-            }
-        }
-        if (event.type == SDL_KEYUP) {
-            if (event.key.keysym.sym == SDLK_w) {
-                game_state->ships[0].thrust = 0.0f;
-            }
-            if (event.key.keysym.sym == SDLK_a || event.key.keysym.sym == SDLK_d) {
-                //stop rotation
-                game_state->ships[0].rotation = 0.0f;
-            }
-        }
     }
 }
 
@@ -192,7 +169,11 @@ void _UpdateTrash(GameState* game_state) {
 void _NewShipRotation(GameState* game_state) {
     for (int i = 0; i < game_state->n_ships; i ++) {
         if (!game_state->ships[i].enabled) continue;
+
+        //lock because rotation can be changed by client input
+        pthread_mutex_lock(&game_state->mutex_keys);
         game_state->ships[i].angle += game_state->ships[i].rotation;
+        pthread_mutex_unlock(&game_state->mutex_keys);
     }
 }
 
@@ -214,7 +195,12 @@ void _NewShipAcceleration(GameState* game_state) {
         }
         //apply thrust
         Vector thrust_vector;
+
+        //lock because thrust can be changed by client input
+        pthread_mutex_lock(&game_state->mutex_keys);
         thrust_vector.amplitude = game_state->ships[i].thrust / game_state->ships[i].mass;
+        pthread_mutex_unlock(&game_state->mutex_keys);
+        
         thrust_vector.angle = game_state->ships[i].angle; //thrust in direction of the ship
         game_state->ships[i].acceleration = AddVectors(game_state->ships[i].acceleration, thrust_vector);
     }

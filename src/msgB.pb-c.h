@@ -87,13 +87,20 @@ struct  ClientMessage
    */
   char *id;
   /*
-   *only used when msg_type = MOVE
+   *bools for each key, 2 bools per key (down and up)
    */
-  uint64_t keys;
+  protobuf_c_boolean wkeydown;
+  protobuf_c_boolean akeydown;
+  protobuf_c_boolean skeydown;
+  protobuf_c_boolean dkeydown;
+  protobuf_c_boolean wkeyup;
+  protobuf_c_boolean akeyup;
+  protobuf_c_boolean skeyup;
+  protobuf_c_boolean dkeyup;
 };
 #define CLIENT_MESSAGE__INIT \
  { PROTOBUF_C_MESSAGE_INIT (&client_message__descriptor) \
-    , CLIENT_MESSAGE_TYPE__CONNECT, NULL, 0 }
+    , CLIENT_MESSAGE_TYPE__CONNECT, NULL, 0, 0, 0, 0, 0, 0, 0, 0 }
 
 
 /*

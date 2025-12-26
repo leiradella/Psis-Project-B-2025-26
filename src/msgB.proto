@@ -53,7 +53,16 @@ enum ServerMessageType {
 message ClientMessage {
     required ClientMessageType msg_type = 1;
     required string id = 2; //we need this for when the client disconnects
-    required uint64 keys = 3; //only used when msg_type = MOVE
+    
+    //bools for each key, 2 bools per key (down and up)
+    required bool   wKeyDown    = 3;
+    required bool   aKeyDown    = 4;
+    required bool   sKeyDown    = 5;
+    required bool   dKeyDown    = 6;
+    required bool   wKeyUp      = 7;
+    required bool   aKeyUp      = 8;
+    required bool   sKeyUp      = 9;
+    required bool   dKeyUp      = 10;
 }
 
 //servidor responde com OK/ERROR e o id da nave de volta

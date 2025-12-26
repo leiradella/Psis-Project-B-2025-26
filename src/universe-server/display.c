@@ -66,12 +66,12 @@ void _DrawShips(SDL_Renderer* renderer, GameState* game_state) {
     //render ships as yellow triangles with their name and trash amount
 
     for (int i = 0; i < game_state->n_ships; i++) {
-        pthread_mutex_lock(&game_state->mutex);
+        pthread_mutex_lock(&game_state->mutex_enable);
         if (game_state->ships[i].enabled == 0) {
-            pthread_mutex_unlock(&game_state->mutex);
+            pthread_mutex_unlock(&game_state->mutex_enable);
             continue; //dont draw disabled ships
         }
-        pthread_mutex_unlock(&game_state->mutex);
+        pthread_mutex_unlock(&game_state->mutex_enable);
 
         int r,g,b,a;
         r = 255; g = 255; b = 0; a = 255; //yellow for ships
