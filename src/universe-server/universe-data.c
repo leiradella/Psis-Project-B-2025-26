@@ -314,7 +314,7 @@ GameState *CreateInitialUniverseState(const char* config_name, int seed) {
 
     game_state->mutex = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
 
-    game_state->ships[0].enabled = 1; //enable the first ship for testing
+    // game_state->ships[0].enabled = 1; //enable the first ship for testing
 
     return game_state;
 }

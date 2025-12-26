@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <string.h>
 
 int main(int argc, char* argv[]) {
 
@@ -19,14 +20,14 @@ int main(int argc, char* argv[]) {
     zmq_connect(socket, port);
     printf("connected\n");
 
-    ClientConnectMessage msg = CLIENT_CONNECT_MESSAGE__INIT;
+    ClientMessage msg = CLIENT_MESSAGE__INIT;
 
-    msg.msg_type = CLIENT_CONNECT_MESSAGE_TYPE__CONNECT;
+    msg.msg_type = CLIENT_MESSAGE_TYPE__CONNECT;
 
-    int msg_len = client_connect_message__get_packed_size(&msg);
+    int msg_len = client_message__get_packed_size(&msg);
     uint8_t* msg_buf = malloc(msg_len);
 
-    client_connect_message__pack(&msg, msg_buf);
+    client_message__pack(&msg, msg_buf);
 
     zmq_send(socket, msg_buf, msg_len, 0);
 
@@ -36,10 +37,39 @@ int main(int argc, char* argv[]) {
     uint8_t recv_buf[256];
     int recv_len = zmq_recv(socket, recv_buf, sizeof(recv_buf), 0);
     
-    ServerConnectMessage* response = server_connect_message__unpack(NULL, recv_len, recv_buf);
+    ServerMessage* response = server_message__unpack(NULL, recv_len, recv_buf);
     printf("Received response: type=%d, id=%s\n", response->msg_type, response->id);
-    server_connect_message__free_unpacked(response, NULL);
+
+    //store ID for later use
+    char* id = strdup(response->id);
+
+    server_message__free_unpacked(response, NULL);
+
+
+
+    //now send a disconnect message
+    ClientMessage disc_msg = CLIENT_MESSAGE__INIT;
+
+    disc_msg.msg_type = CLIENT_MESSAGE_TYPE__DISCONNECT;
+    disc_msg.id = strdup(id);
+
+    int disc_msg_len = client_message__get_packed_size(&disc_msg);
+    uint8_t* disc_msg_buf = (uint8_t*)malloc(disc_msg_len);
+
+    client_message__pack(&disc_msg, disc_msg_buf);
+    zmq_send(socket, disc_msg_buf, disc_msg_len, 0);
+    free(disc_msg.id);
+    free(disc_msg_buf);
+    free(id);
+
+    //receive response
+    recv_len = zmq_recv(socket, recv_buf, sizeof(recv_buf), 0);
+    response = server_message__unpack(NULL, recv_len, recv_buf);
+    printf("Received disconnect response: type=%d, id=%s\n", response->msg_type, response->id);
+    server_message__free_unpacked(response, NULL);
 
     zmq_close(socket);
     zmq_ctx_destroy(ctx);
+    
+    return 0;
 }

@@ -18,25 +18,26 @@ PROTOBUF_C__BEGIN_DECLS
 typedef struct Client Client;
 typedef struct UniverseData UniverseData;
 typedef struct SimplifiedUniverseData SimplifiedUniverseData;
-typedef struct ClientConnectMessage ClientConnectMessage;
-typedef struct ServerConnectMessage ServerConnectMessage;
+typedef struct ClientMessage ClientMessage;
+typedef struct ServerMessage ServerMessage;
 
 
 /* --- enums --- */
 
 /*
- *Connect/disconnect messages
+ *============Client/server connections and moves===================
  */
-typedef enum _ClientConnectMessageType {
-  CLIENT_CONNECT_MESSAGE_TYPE__CONNECT = 0,
-  CLIENT_CONNECT_MESSAGE_TYPE__DISCONNECT = 1
-    PROTOBUF_C__FORCE_ENUM_TO_BE_INT_SIZE(CLIENT_CONNECT_MESSAGE_TYPE)
-} ClientConnectMessageType;
-typedef enum _ServerConnectMessageType {
-  SERVER_CONNECT_MESSAGE_TYPE__OK = 0,
-  SERVER_CONNECT_MESSAGE_TYPE__ERROR = 1
-    PROTOBUF_C__FORCE_ENUM_TO_BE_INT_SIZE(SERVER_CONNECT_MESSAGE_TYPE)
-} ServerConnectMessageType;
+typedef enum _ClientMessageType {
+  CLIENT_MESSAGE_TYPE__CONNECT = 0,
+  CLIENT_MESSAGE_TYPE__DISCONNECT = 1,
+  CLIENT_MESSAGE_TYPE__MOVE = 2
+    PROTOBUF_C__FORCE_ENUM_TO_BE_INT_SIZE(CLIENT_MESSAGE_TYPE)
+} ClientMessageType;
+typedef enum _ServerMessageType {
+  SERVER_MESSAGE_TYPE__OK = 0,
+  SERVER_MESSAGE_TYPE__ERROR = 1
+    PROTOBUF_C__FORCE_ENUM_TO_BE_INT_SIZE(SERVER_MESSAGE_TYPE)
+} ServerMessageType;
 
 /* --- messages --- */
 
@@ -77,31 +78,36 @@ struct  SimplifiedUniverseData
     , {0,NULL}, {0,NULL}, 0, 0 }
 
 
-/*
- *cliente envia uma mensagem com o tipo (conectar/desconectar)
- */
-struct  ClientConnectMessage
+struct  ClientMessage
 {
   ProtobufCMessage base;
-  ClientConnectMessageType msg_type;
+  ClientMessageType msg_type;
+  /*
+   *we need this for when the client disconnects
+   */
+  char *id;
+  /*
+   *only used when msg_type = MOVE
+   */
+  uint64_t keys;
 };
-#define CLIENT_CONNECT_MESSAGE__INIT \
- { PROTOBUF_C_MESSAGE_INIT (&client_connect_message__descriptor) \
-    , CLIENT_CONNECT_MESSAGE_TYPE__CONNECT }
+#define CLIENT_MESSAGE__INIT \
+ { PROTOBUF_C_MESSAGE_INIT (&client_message__descriptor) \
+    , CLIENT_MESSAGE_TYPE__CONNECT, NULL, 0 }
 
 
 /*
  *servidor responde com OK/ERROR e o id da nave de volta
  */
-struct  ServerConnectMessage
+struct  ServerMessage
 {
   ProtobufCMessage base;
-  ServerConnectMessageType msg_type;
+  ServerMessageType msg_type;
   char *id;
 };
-#define SERVER_CONNECT_MESSAGE__INIT \
- { PROTOBUF_C_MESSAGE_INIT (&server_connect_message__descriptor) \
-    , SERVER_CONNECT_MESSAGE_TYPE__OK, NULL }
+#define SERVER_MESSAGE__INIT \
+ { PROTOBUF_C_MESSAGE_INIT (&server_message__descriptor) \
+    , SERVER_MESSAGE_TYPE__OK, NULL }
 
 
 /* Client methods */
@@ -161,43 +167,43 @@ SimplifiedUniverseData *
 void   simplified_universe_data__free_unpacked
                      (SimplifiedUniverseData *message,
                       ProtobufCAllocator *allocator);
-/* ClientConnectMessage methods */
-void   client_connect_message__init
-                     (ClientConnectMessage         *message);
-size_t client_connect_message__get_packed_size
-                     (const ClientConnectMessage   *message);
-size_t client_connect_message__pack
-                     (const ClientConnectMessage   *message,
+/* ClientMessage methods */
+void   client_message__init
+                     (ClientMessage         *message);
+size_t client_message__get_packed_size
+                     (const ClientMessage   *message);
+size_t client_message__pack
+                     (const ClientMessage   *message,
                       uint8_t             *out);
-size_t client_connect_message__pack_to_buffer
-                     (const ClientConnectMessage   *message,
+size_t client_message__pack_to_buffer
+                     (const ClientMessage   *message,
                       ProtobufCBuffer     *buffer);
-ClientConnectMessage *
-       client_connect_message__unpack
+ClientMessage *
+       client_message__unpack
                      (ProtobufCAllocator  *allocator,
                       size_t               len,
                       const uint8_t       *data);
-void   client_connect_message__free_unpacked
-                     (ClientConnectMessage *message,
+void   client_message__free_unpacked
+                     (ClientMessage *message,
                       ProtobufCAllocator *allocator);
-/* ServerConnectMessage methods */
-void   server_connect_message__init
-                     (ServerConnectMessage         *message);
-size_t server_connect_message__get_packed_size
-                     (const ServerConnectMessage   *message);
-size_t server_connect_message__pack
-                     (const ServerConnectMessage   *message,
+/* ServerMessage methods */
+void   server_message__init
+                     (ServerMessage         *message);
+size_t server_message__get_packed_size
+                     (const ServerMessage   *message);
+size_t server_message__pack
+                     (const ServerMessage   *message,
                       uint8_t             *out);
-size_t server_connect_message__pack_to_buffer
-                     (const ServerConnectMessage   *message,
+size_t server_message__pack_to_buffer
+                     (const ServerMessage   *message,
                       ProtobufCBuffer     *buffer);
-ServerConnectMessage *
-       server_connect_message__unpack
+ServerMessage *
+       server_message__unpack
                      (ProtobufCAllocator  *allocator,
                       size_t               len,
                       const uint8_t       *data);
-void   server_connect_message__free_unpacked
-                     (ServerConnectMessage *message,
+void   server_message__free_unpacked
+                     (ServerMessage *message,
                       ProtobufCAllocator *allocator);
 /* --- per-message closures --- */
 
@@ -210,11 +216,11 @@ typedef void (*UniverseData_Closure)
 typedef void (*SimplifiedUniverseData_Closure)
                  (const SimplifiedUniverseData *message,
                   void *closure_data);
-typedef void (*ClientConnectMessage_Closure)
-                 (const ClientConnectMessage *message,
+typedef void (*ClientMessage_Closure)
+                 (const ClientMessage *message,
                   void *closure_data);
-typedef void (*ServerConnectMessage_Closure)
-                 (const ServerConnectMessage *message,
+typedef void (*ServerMessage_Closure)
+                 (const ServerMessage *message,
                   void *closure_data);
 
 /* --- services --- */
@@ -222,13 +228,13 @@ typedef void (*ServerConnectMessage_Closure)
 
 /* --- descriptors --- */
 
-extern const ProtobufCEnumDescriptor    client_connect_message_type__descriptor;
-extern const ProtobufCEnumDescriptor    server_connect_message_type__descriptor;
+extern const ProtobufCEnumDescriptor    client_message_type__descriptor;
+extern const ProtobufCEnumDescriptor    server_message_type__descriptor;
 extern const ProtobufCMessageDescriptor client__descriptor;
 extern const ProtobufCMessageDescriptor universe_data__descriptor;
 extern const ProtobufCMessageDescriptor simplified_universe_data__descriptor;
-extern const ProtobufCMessageDescriptor client_connect_message__descriptor;
-extern const ProtobufCMessageDescriptor server_connect_message__descriptor;
+extern const ProtobufCMessageDescriptor client_message__descriptor;
+extern const ProtobufCMessageDescriptor server_message__descriptor;
 
 PROTOBUF_C__END_DECLS
 

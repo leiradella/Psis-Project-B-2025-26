@@ -20,7 +20,7 @@ void *ClientCommunicationThread(void* arg) {
 
     while (1) {
         //check for client messages
-        int result = ReceiveClientConnection(comm);
+        int result = ReceiveClientMessage(comm);
         if (result == -1) {
             //error occurred
             printf("Error receiving client message.\n");
