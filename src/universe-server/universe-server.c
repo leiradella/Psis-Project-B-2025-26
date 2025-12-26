@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <time.h>
+#include <pthread.h>
 
 #include <libconfig.h>
 #include <SDL2/SDL.h>
@@ -9,6 +10,23 @@
 #include "physics-rules.h"
 #include "display.h"
 #include "communication.h"
+
+//thread for client connections/moves
+void *ClientCommunicationThread(void* arg) {
+    CommunicationManager* comm = (CommunicationManager*)arg;
+    if (comm == NULL) {
+        pthread_exit(NULL);
+    }
+
+    while (1) {
+        //check for client messages
+        int result = ReceiveClientConnection(comm);
+        if (result == -1) {
+            //error occurred
+            printf("Error receiving client message.\n");
+        }
+    } 
+}
 
 int main(int argc, char* argv[]) {
 
@@ -33,7 +51,15 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    ReceiveClientConnection(comm); //test receiving client connections
+    //start a thread to handle client connections
+    pthread_t comm_thread;
+    if (pthread_create(&comm_thread, NULL, ClientCommunicationThread, (void*)comm) != 0) {
+        printf("Failed to create communication thread. Exiting...\n");
+        CommunicationQuit(&comm);
+        DestroyUniverse(&game_state);
+        return 1;
+    }
+
 
     //Initalize SDL
     if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {

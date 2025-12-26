@@ -5,6 +5,8 @@
 #include <SDL2/SDL_ttf.h>
 #include <libconfig.h>
 
+#include <pthread.h>
+
 //default values for universe objects
 #define PLANET_MASS 10
 #define PLANET_RADIUS 20.0f
@@ -120,6 +122,9 @@ typedef struct GameState {
 
     int router_port;
     int pub_port;
+
+    //mutex for thread safety
+    pthread_mutex_t mutex;
 
 } GameState;
 

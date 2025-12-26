@@ -3,9 +3,13 @@
 
 #include "../msgB.pb-c.h"
 #include <zmq.h>
+
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 #include <stdint.h>
+#include <pthread.h>
+
 
 #define CLIENT_CONNECT CLIENT_CONNECT_MESSAGE_TYPE__CONNECT
 #define CLIENT_DISCONNECT CLIENT_CONNECT_MESSAGE_TYPE__DISCONNECT
@@ -21,6 +25,9 @@ CommunicationManager* CommunicationInit(GameState* state) {
     if (comm == NULL) {
         return NULL;
     }
+
+    //add gamestate reference
+    comm->game_state = state;
 
     //initialize ZMQ context
     comm->context = zmq_ctx_new();
@@ -119,29 +126,46 @@ void _ProcessClientConnect(CommunicationManager* comm) {
 
     //create a message (we always send a response)
     ServerConnectMessage response = SERVER_CONNECT_MESSAGE__INIT;
+   
+    //message contents
     ServerConnectMessageType msg_type;
-    char ship_id[2];
+    char id[33];
 
     if (slot == -1) {
         //error response
         msg_type = SERVER_CONNECT_ERROR;
-        ship_id[0] = '0';
-        ship_id[1] = '\0';
+        
+        //invalid ID for error
+        id[0] = '\0';
     } else {
         //communication manager updates
         comm->num_connected++;
         comm->clients[slot].ship_id = 'A' + slot;  //Assign ship ID as name
         comm->clients[slot].connection_id = slot;
 
+        //create a random connection ID
+        static const char *hex = "0123456789abcdef";
+        for (int i=0; i<16; i++) {
+            unsigned int r = (unsigned int)rand();
+            r ^= (unsigned int)rand() << 8;
+
+            unsigned int byte = r & 0xFF;
+            id[i*2] = hex[(byte >> 4) & 0xF];
+            id[i*2 +1] = hex[byte & 0xF];
+        }
+        id[32] = '\0';
+
+        //enable ship in gamestate (lock because is_active is accessed by other threads)
+        pthread_mutex_lock(&comm->game_state->mutex);
+        comm->game_state->ships[slot].enabled = 1;
+        pthread_mutex_unlock(&comm->game_state->mutex);
+
         //prepare success response
         msg_type = SERVER_CONNECT_OK;
-        ship_id[0] = comm->clients[slot].ship_id;
-        ship_id[1] = '\0';
-
     }
 
-    //send message along with assigned ship ID (ID = '0' if error)
-    response.id = strdup(ship_id);
+    //send message along with assigned connection ID
+    response.id = strdup(id);
     response.msg_type = msg_type;
 
     //serialize protobuf message into zmq message and send
@@ -150,13 +174,34 @@ void _ProcessClientConnect(CommunicationManager* comm) {
     server_connect_message__pack(&response, msg_buf);
     zmq_send(comm->client_router_socket, msg_buf, msg_len, 0);
 
+    free(response.id);
     free(msg_buf);
     return;
 }
 
 void _ProcessClientDisconnect(CommunicationManager* comm) {
     //process a disconnection request from a client
-    (void)comm;
+
+    //find the slot with the given ship_id
+    int slot = -1;
+    for (int i=0; i<comm->max_clients; i++) {
+
+    }
+
+    if (slot == -1) {
+        //unknown ship_id, ignore
+        return;
+    } else {
+        //communication manager updates
+        comm->num_connected--;
+        comm->clients[slot].ship_id = -1;
+        comm->clients[slot].connection_id = -1;
+
+        //disable ship in gamestate (lock because is_active is accessed by other threads)
+        pthread_mutex_lock(&comm->game_state->mutex);
+        comm->game_state->ships[slot].enabled = 0;
+        pthread_mutex_unlock(&comm->game_state->mutex);
+    }
 }
 
 int ReceiveClientConnection(CommunicationManager* comm) {

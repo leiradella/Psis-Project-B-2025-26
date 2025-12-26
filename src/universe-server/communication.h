@@ -31,6 +31,10 @@ typedef struct CommunicationManager {
     
     //Dashboard communication  
     void* dashboard_rep_socket;     //REP: handles dashboard requests
+
+    //gamestate to enable/disable ships on connect/disconnect
+    GameState* game_state;
+
 } CommunicationManager;
 
 

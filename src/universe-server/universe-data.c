@@ -312,6 +312,8 @@ GameState *CreateInitialUniverseState(const char* config_name, int seed) {
     game_state->router_port = universe_config.router_port;
     game_state->pub_port = universe_config.pub_port;
 
+    game_state->mutex = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
+
     game_state->ships[0].enabled = 1; //enable the first ship for testing
 
     return game_state;

@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <pthread.h>
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
@@ -65,7 +66,12 @@ void _DrawShips(SDL_Renderer* renderer, GameState* game_state) {
     //render ships as yellow triangles with their name and trash amount
 
     for (int i = 0; i < game_state->n_ships; i++) {
-        if (game_state->ships[i].enabled == 0) continue; //dont draw disabled ships
+        pthread_mutex_lock(&game_state->mutex);
+        if (game_state->ships[i].enabled == 0) {
+            pthread_mutex_unlock(&game_state->mutex);
+            continue; //dont draw disabled ships
+        }
+        pthread_mutex_unlock(&game_state->mutex);
 
         int r,g,b,a;
         r = 255; g = 255; b = 0; a = 255; //yellow for ships

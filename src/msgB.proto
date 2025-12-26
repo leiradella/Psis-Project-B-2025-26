@@ -37,6 +37,7 @@ enum ServerConnectMessageType {
 //cliente envia uma mensagem com o tipo (conectar/desconectar)
 message ClientConnectMessage {
     required ClientConnectMessageType msg_type = 1;
+    required string id = 2; //we need this for when the client disconnects
 }
 
 //servidor responde com OK/ERROR e o id da nave de volta
