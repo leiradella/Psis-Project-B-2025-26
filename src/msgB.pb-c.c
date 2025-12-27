@@ -7,141 +7,6 @@
 #endif
 
 #include "msgB.pb-c.h"
-void   client__init
-                     (Client         *message)
-{
-  static const Client init_value = CLIENT__INIT;
-  *message = init_value;
-}
-size_t client__get_packed_size
-                     (const Client *message)
-{
-  assert(message->base.descriptor == &client__descriptor);
-  return protobuf_c_message_get_packed_size ((const ProtobufCMessage*)(message));
-}
-size_t client__pack
-                     (const Client *message,
-                      uint8_t       *out)
-{
-  assert(message->base.descriptor == &client__descriptor);
-  return protobuf_c_message_pack ((const ProtobufCMessage*)message, out);
-}
-size_t client__pack_to_buffer
-                     (const Client *message,
-                      ProtobufCBuffer *buffer)
-{
-  assert(message->base.descriptor == &client__descriptor);
-  return protobuf_c_message_pack_to_buffer ((const ProtobufCMessage*)message, buffer);
-}
-Client *
-       client__unpack
-                     (ProtobufCAllocator  *allocator,
-                      size_t               len,
-                      const uint8_t       *data)
-{
-  return (Client *)
-     protobuf_c_message_unpack (&client__descriptor,
-                                allocator, len, data);
-}
-void   client__free_unpacked
-                     (Client *message,
-                      ProtobufCAllocator *allocator)
-{
-  if(!message)
-    return;
-  assert(message->base.descriptor == &client__descriptor);
-  protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
-}
-void   universe_data__init
-                     (UniverseData         *message)
-{
-  static const UniverseData init_value = UNIVERSE_DATA__INIT;
-  *message = init_value;
-}
-size_t universe_data__get_packed_size
-                     (const UniverseData *message)
-{
-  assert(message->base.descriptor == &universe_data__descriptor);
-  return protobuf_c_message_get_packed_size ((const ProtobufCMessage*)(message));
-}
-size_t universe_data__pack
-                     (const UniverseData *message,
-                      uint8_t       *out)
-{
-  assert(message->base.descriptor == &universe_data__descriptor);
-  return protobuf_c_message_pack ((const ProtobufCMessage*)message, out);
-}
-size_t universe_data__pack_to_buffer
-                     (const UniverseData *message,
-                      ProtobufCBuffer *buffer)
-{
-  assert(message->base.descriptor == &universe_data__descriptor);
-  return protobuf_c_message_pack_to_buffer ((const ProtobufCMessage*)message, buffer);
-}
-UniverseData *
-       universe_data__unpack
-                     (ProtobufCAllocator  *allocator,
-                      size_t               len,
-                      const uint8_t       *data)
-{
-  return (UniverseData *)
-     protobuf_c_message_unpack (&universe_data__descriptor,
-                                allocator, len, data);
-}
-void   universe_data__free_unpacked
-                     (UniverseData *message,
-                      ProtobufCAllocator *allocator)
-{
-  if(!message)
-    return;
-  assert(message->base.descriptor == &universe_data__descriptor);
-  protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
-}
-void   simplified_universe_data__init
-                     (SimplifiedUniverseData         *message)
-{
-  static const SimplifiedUniverseData init_value = SIMPLIFIED_UNIVERSE_DATA__INIT;
-  *message = init_value;
-}
-size_t simplified_universe_data__get_packed_size
-                     (const SimplifiedUniverseData *message)
-{
-  assert(message->base.descriptor == &simplified_universe_data__descriptor);
-  return protobuf_c_message_get_packed_size ((const ProtobufCMessage*)(message));
-}
-size_t simplified_universe_data__pack
-                     (const SimplifiedUniverseData *message,
-                      uint8_t       *out)
-{
-  assert(message->base.descriptor == &simplified_universe_data__descriptor);
-  return protobuf_c_message_pack ((const ProtobufCMessage*)message, out);
-}
-size_t simplified_universe_data__pack_to_buffer
-                     (const SimplifiedUniverseData *message,
-                      ProtobufCBuffer *buffer)
-{
-  assert(message->base.descriptor == &simplified_universe_data__descriptor);
-  return protobuf_c_message_pack_to_buffer ((const ProtobufCMessage*)message, buffer);
-}
-SimplifiedUniverseData *
-       simplified_universe_data__unpack
-                     (ProtobufCAllocator  *allocator,
-                      size_t               len,
-                      const uint8_t       *data)
-{
-  return (SimplifiedUniverseData *)
-     protobuf_c_message_unpack (&simplified_universe_data__descriptor,
-                                allocator, len, data);
-}
-void   simplified_universe_data__free_unpacked
-                     (SimplifiedUniverseData *message,
-                      ProtobufCAllocator *allocator)
-{
-  if(!message)
-    return;
-  assert(message->base.descriptor == &simplified_universe_data__descriptor);
-  protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
-}
 void   client_message__init
                      (ClientMessage         *message)
 {
@@ -232,211 +97,186 @@ void   server_message__free_unpacked
   assert(message->base.descriptor == &server_message__descriptor);
   protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
 }
-static const ProtobufCFieldDescriptor client__field_descriptors[2] =
+void   ship_struct__init
+                     (ShipStruct         *message)
 {
-  {
-    "key",
-    1,
-    PROTOBUF_C_LABEL_REQUIRED,
-    PROTOBUF_C_TYPE_UINT64,
-    0,   /* quantifier_offset */
-    offsetof(Client, key),
-    NULL,
-    NULL,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-  {
-    "instruction",
-    2,
-    PROTOBUF_C_LABEL_REQUIRED,
-    PROTOBUF_C_TYPE_UINT64,
-    0,   /* quantifier_offset */
-    offsetof(Client, instruction),
-    NULL,
-    NULL,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-};
-static const unsigned client__field_indices_by_name[] = {
-  1,   /* field[1] = instruction */
-  0,   /* field[0] = key */
-};
-static const ProtobufCIntRange client__number_ranges[1 + 1] =
+  static const ShipStruct init_value = SHIP_STRUCT__INIT;
+  *message = init_value;
+}
+size_t ship_struct__get_packed_size
+                     (const ShipStruct *message)
 {
-  { 1, 0 },
-  { 0, 2 }
-};
-const ProtobufCMessageDescriptor client__descriptor =
+  assert(message->base.descriptor == &ship_struct__descriptor);
+  return protobuf_c_message_get_packed_size ((const ProtobufCMessage*)(message));
+}
+size_t ship_struct__pack
+                     (const ShipStruct *message,
+                      uint8_t       *out)
 {
-  PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
-  "client",
-  "Client",
-  "Client",
-  "",
-  sizeof(Client),
-  2,
-  client__field_descriptors,
-  client__field_indices_by_name,
-  1,  client__number_ranges,
-  (ProtobufCMessageInit) client__init,
-  NULL,NULL,NULL    /* reserved[123] */
-};
-static const ProtobufCFieldDescriptor universe_data__field_descriptors[4] =
+  assert(message->base.descriptor == &ship_struct__descriptor);
+  return protobuf_c_message_pack ((const ProtobufCMessage*)message, out);
+}
+size_t ship_struct__pack_to_buffer
+                     (const ShipStruct *message,
+                      ProtobufCBuffer *buffer)
 {
-  {
-    "Planets",
-    1,
-    PROTOBUF_C_LABEL_REQUIRED,
-    PROTOBUF_C_TYPE_BYTES,
-    0,   /* quantifier_offset */
-    offsetof(UniverseData, planets),
-    NULL,
-    NULL,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-  {
-    "Ships",
-    2,
-    PROTOBUF_C_LABEL_REQUIRED,
-    PROTOBUF_C_TYPE_BYTES,
-    0,   /* quantifier_offset */
-    offsetof(UniverseData, ships),
-    NULL,
-    NULL,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-  {
-    "Trash",
-    3,
-    PROTOBUF_C_LABEL_REQUIRED,
-    PROTOBUF_C_TYPE_BYTES,
-    0,   /* quantifier_offset */
-    offsetof(UniverseData, trash),
-    NULL,
-    NULL,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-  {
-    "myPlanet",
-    4,
-    PROTOBUF_C_LABEL_REQUIRED,
-    PROTOBUF_C_TYPE_DOUBLE,
-    0,   /* quantifier_offset */
-    offsetof(UniverseData, myplanet),
-    NULL,
-    NULL,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-};
-static const unsigned universe_data__field_indices_by_name[] = {
-  0,   /* field[0] = Planets */
-  1,   /* field[1] = Ships */
-  2,   /* field[2] = Trash */
-  3,   /* field[3] = myPlanet */
-};
-static const ProtobufCIntRange universe_data__number_ranges[1 + 1] =
+  assert(message->base.descriptor == &ship_struct__descriptor);
+  return protobuf_c_message_pack_to_buffer ((const ProtobufCMessage*)message, buffer);
+}
+ShipStruct *
+       ship_struct__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data)
 {
-  { 1, 0 },
-  { 0, 4 }
-};
-const ProtobufCMessageDescriptor universe_data__descriptor =
+  return (ShipStruct *)
+     protobuf_c_message_unpack (&ship_struct__descriptor,
+                                allocator, len, data);
+}
+void   ship_struct__free_unpacked
+                     (ShipStruct *message,
+                      ProtobufCAllocator *allocator)
 {
-  PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
-  "UniverseData",
-  "UniverseData",
-  "UniverseData",
-  "",
-  sizeof(UniverseData),
-  4,
-  universe_data__field_descriptors,
-  universe_data__field_indices_by_name,
-  1,  universe_data__number_ranges,
-  (ProtobufCMessageInit) universe_data__init,
-  NULL,NULL,NULL    /* reserved[123] */
-};
-static const ProtobufCFieldDescriptor simplified_universe_data__field_descriptors[4] =
+  if(!message)
+    return;
+  assert(message->base.descriptor == &ship_struct__descriptor);
+  protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
+}
+void   trash_struct__init
+                     (TrashStruct         *message)
 {
-  {
-    "planetTrashCount",
-    1,
-    PROTOBUF_C_LABEL_REQUIRED,
-    PROTOBUF_C_TYPE_BYTES,
-    0,   /* quantifier_offset */
-    offsetof(SimplifiedUniverseData, planettrashcount),
-    NULL,
-    NULL,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-  {
-    "trashPerShip",
-    2,
-    PROTOBUF_C_LABEL_REQUIRED,
-    PROTOBUF_C_TYPE_BYTES,
-    0,   /* quantifier_offset */
-    offsetof(SimplifiedUniverseData, trashpership),
-    NULL,
-    NULL,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-  {
-    "freeTrash",
-    3,
-    PROTOBUF_C_LABEL_REQUIRED,
-    PROTOBUF_C_TYPE_DOUBLE,
-    0,   /* quantifier_offset */
-    offsetof(SimplifiedUniverseData, freetrash),
-    NULL,
-    NULL,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-  {
-    "maxTrash",
-    4,
-    PROTOBUF_C_LABEL_REQUIRED,
-    PROTOBUF_C_TYPE_DOUBLE,
-    0,   /* quantifier_offset */
-    offsetof(SimplifiedUniverseData, maxtrash),
-    NULL,
-    NULL,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-};
-static const unsigned simplified_universe_data__field_indices_by_name[] = {
-  2,   /* field[2] = freeTrash */
-  3,   /* field[3] = maxTrash */
-  0,   /* field[0] = planetTrashCount */
-  1,   /* field[1] = trashPerShip */
-};
-static const ProtobufCIntRange simplified_universe_data__number_ranges[1 + 1] =
+  static const TrashStruct init_value = TRASH_STRUCT__INIT;
+  *message = init_value;
+}
+size_t trash_struct__get_packed_size
+                     (const TrashStruct *message)
 {
-  { 1, 0 },
-  { 0, 4 }
-};
-const ProtobufCMessageDescriptor simplified_universe_data__descriptor =
+  assert(message->base.descriptor == &trash_struct__descriptor);
+  return protobuf_c_message_get_packed_size ((const ProtobufCMessage*)(message));
+}
+size_t trash_struct__pack
+                     (const TrashStruct *message,
+                      uint8_t       *out)
 {
-  PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
-  "SimplifiedUniverseData",
-  "SimplifiedUniverseData",
-  "SimplifiedUniverseData",
-  "",
-  sizeof(SimplifiedUniverseData),
-  4,
-  simplified_universe_data__field_descriptors,
-  simplified_universe_data__field_indices_by_name,
-  1,  simplified_universe_data__number_ranges,
-  (ProtobufCMessageInit) simplified_universe_data__init,
-  NULL,NULL,NULL    /* reserved[123] */
-};
+  assert(message->base.descriptor == &trash_struct__descriptor);
+  return protobuf_c_message_pack ((const ProtobufCMessage*)message, out);
+}
+size_t trash_struct__pack_to_buffer
+                     (const TrashStruct *message,
+                      ProtobufCBuffer *buffer)
+{
+  assert(message->base.descriptor == &trash_struct__descriptor);
+  return protobuf_c_message_pack_to_buffer ((const ProtobufCMessage*)message, buffer);
+}
+TrashStruct *
+       trash_struct__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data)
+{
+  return (TrashStruct *)
+     protobuf_c_message_unpack (&trash_struct__descriptor,
+                                allocator, len, data);
+}
+void   trash_struct__free_unpacked
+                     (TrashStruct *message,
+                      ProtobufCAllocator *allocator)
+{
+  if(!message)
+    return;
+  assert(message->base.descriptor == &trash_struct__descriptor);
+  protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
+}
+void   planet_struct__init
+                     (PlanetStruct         *message)
+{
+  static const PlanetStruct init_value = PLANET_STRUCT__INIT;
+  *message = init_value;
+}
+size_t planet_struct__get_packed_size
+                     (const PlanetStruct *message)
+{
+  assert(message->base.descriptor == &planet_struct__descriptor);
+  return protobuf_c_message_get_packed_size ((const ProtobufCMessage*)(message));
+}
+size_t planet_struct__pack
+                     (const PlanetStruct *message,
+                      uint8_t       *out)
+{
+  assert(message->base.descriptor == &planet_struct__descriptor);
+  return protobuf_c_message_pack ((const ProtobufCMessage*)message, out);
+}
+size_t planet_struct__pack_to_buffer
+                     (const PlanetStruct *message,
+                      ProtobufCBuffer *buffer)
+{
+  assert(message->base.descriptor == &planet_struct__descriptor);
+  return protobuf_c_message_pack_to_buffer ((const ProtobufCMessage*)message, buffer);
+}
+PlanetStruct *
+       planet_struct__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data)
+{
+  return (PlanetStruct *)
+     protobuf_c_message_unpack (&planet_struct__descriptor,
+                                allocator, len, data);
+}
+void   planet_struct__free_unpacked
+                     (PlanetStruct *message,
+                      ProtobufCAllocator *allocator)
+{
+  if(!message)
+    return;
+  assert(message->base.descriptor == &planet_struct__descriptor);
+  protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
+}
+void   universe_state_message__init
+                     (UniverseStateMessage         *message)
+{
+  static const UniverseStateMessage init_value = UNIVERSE_STATE_MESSAGE__INIT;
+  *message = init_value;
+}
+size_t universe_state_message__get_packed_size
+                     (const UniverseStateMessage *message)
+{
+  assert(message->base.descriptor == &universe_state_message__descriptor);
+  return protobuf_c_message_get_packed_size ((const ProtobufCMessage*)(message));
+}
+size_t universe_state_message__pack
+                     (const UniverseStateMessage *message,
+                      uint8_t       *out)
+{
+  assert(message->base.descriptor == &universe_state_message__descriptor);
+  return protobuf_c_message_pack ((const ProtobufCMessage*)message, out);
+}
+size_t universe_state_message__pack_to_buffer
+                     (const UniverseStateMessage *message,
+                      ProtobufCBuffer *buffer)
+{
+  assert(message->base.descriptor == &universe_state_message__descriptor);
+  return protobuf_c_message_pack_to_buffer ((const ProtobufCMessage*)message, buffer);
+}
+UniverseStateMessage *
+       universe_state_message__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data)
+{
+  return (UniverseStateMessage *)
+     protobuf_c_message_unpack (&universe_state_message__descriptor,
+                                allocator, len, data);
+}
+void   universe_state_message__free_unpacked
+                     (UniverseStateMessage *message,
+                      ProtobufCAllocator *allocator)
+{
+  if(!message)
+    return;
+  assert(message->base.descriptor == &universe_state_message__descriptor);
+  protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
+}
 static const ProtobufCFieldDescriptor client_message__field_descriptors[10] =
 {
   {
@@ -641,6 +481,340 @@ const ProtobufCMessageDescriptor server_message__descriptor =
   server_message__field_indices_by_name,
   1,  server_message__number_ranges,
   (ProtobufCMessageInit) server_message__init,
+  NULL,NULL,NULL    /* reserved[123] */
+};
+static const ProtobufCFieldDescriptor ship_struct__field_descriptors[4] =
+{
+  {
+    "name",
+    1,
+    PROTOBUF_C_LABEL_REQUIRED,
+    PROTOBUF_C_TYPE_STRING,
+    0,   /* quantifier_offset */
+    offsetof(ShipStruct, name),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "x",
+    2,
+    PROTOBUF_C_LABEL_REQUIRED,
+    PROTOBUF_C_TYPE_FLOAT,
+    0,   /* quantifier_offset */
+    offsetof(ShipStruct, x),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "y",
+    3,
+    PROTOBUF_C_LABEL_REQUIRED,
+    PROTOBUF_C_TYPE_FLOAT,
+    0,   /* quantifier_offset */
+    offsetof(ShipStruct, y),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "angle",
+    4,
+    PROTOBUF_C_LABEL_REQUIRED,
+    PROTOBUF_C_TYPE_FLOAT,
+    0,   /* quantifier_offset */
+    offsetof(ShipStruct, angle),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+};
+static const unsigned ship_struct__field_indices_by_name[] = {
+  3,   /* field[3] = angle */
+  0,   /* field[0] = name */
+  1,   /* field[1] = x */
+  2,   /* field[2] = y */
+};
+static const ProtobufCIntRange ship_struct__number_ranges[1 + 1] =
+{
+  { 1, 0 },
+  { 0, 4 }
+};
+const ProtobufCMessageDescriptor ship_struct__descriptor =
+{
+  PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
+  "ShipStruct",
+  "ShipStruct",
+  "ShipStruct",
+  "",
+  sizeof(ShipStruct),
+  4,
+  ship_struct__field_descriptors,
+  ship_struct__field_indices_by_name,
+  1,  ship_struct__number_ranges,
+  (ProtobufCMessageInit) ship_struct__init,
+  NULL,NULL,NULL    /* reserved[123] */
+};
+static const ProtobufCFieldDescriptor trash_struct__field_descriptors[2] =
+{
+  {
+    "x",
+    1,
+    PROTOBUF_C_LABEL_REQUIRED,
+    PROTOBUF_C_TYPE_FLOAT,
+    0,   /* quantifier_offset */
+    offsetof(TrashStruct, x),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "y",
+    2,
+    PROTOBUF_C_LABEL_REQUIRED,
+    PROTOBUF_C_TYPE_FLOAT,
+    0,   /* quantifier_offset */
+    offsetof(TrashStruct, y),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+};
+static const unsigned trash_struct__field_indices_by_name[] = {
+  0,   /* field[0] = x */
+  1,   /* field[1] = y */
+};
+static const ProtobufCIntRange trash_struct__number_ranges[1 + 1] =
+{
+  { 1, 0 },
+  { 0, 2 }
+};
+const ProtobufCMessageDescriptor trash_struct__descriptor =
+{
+  PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
+  "TrashStruct",
+  "TrashStruct",
+  "TrashStruct",
+  "",
+  sizeof(TrashStruct),
+  2,
+  trash_struct__field_descriptors,
+  trash_struct__field_indices_by_name,
+  1,  trash_struct__number_ranges,
+  (ProtobufCMessageInit) trash_struct__init,
+  NULL,NULL,NULL    /* reserved[123] */
+};
+static const ProtobufCFieldDescriptor planet_struct__field_descriptors[4] =
+{
+  {
+    "name",
+    1,
+    PROTOBUF_C_LABEL_REQUIRED,
+    PROTOBUF_C_TYPE_STRING,
+    0,   /* quantifier_offset */
+    offsetof(PlanetStruct, name),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "x",
+    2,
+    PROTOBUF_C_LABEL_REQUIRED,
+    PROTOBUF_C_TYPE_FLOAT,
+    0,   /* quantifier_offset */
+    offsetof(PlanetStruct, x),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "y",
+    3,
+    PROTOBUF_C_LABEL_REQUIRED,
+    PROTOBUF_C_TYPE_FLOAT,
+    0,   /* quantifier_offset */
+    offsetof(PlanetStruct, y),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "recycler_index",
+    4,
+    PROTOBUF_C_LABEL_REQUIRED,
+    PROTOBUF_C_TYPE_INT32,
+    0,   /* quantifier_offset */
+    offsetof(PlanetStruct, recycler_index),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+};
+static const unsigned planet_struct__field_indices_by_name[] = {
+  0,   /* field[0] = name */
+  3,   /* field[3] = recycler_index */
+  1,   /* field[1] = x */
+  2,   /* field[2] = y */
+};
+static const ProtobufCIntRange planet_struct__number_ranges[1 + 1] =
+{
+  { 1, 0 },
+  { 0, 4 }
+};
+const ProtobufCMessageDescriptor planet_struct__descriptor =
+{
+  PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
+  "PlanetStruct",
+  "PlanetStruct",
+  "PlanetStruct",
+  "",
+  sizeof(PlanetStruct),
+  4,
+  planet_struct__field_descriptors,
+  planet_struct__field_indices_by_name,
+  1,  planet_struct__number_ranges,
+  (ProtobufCMessageInit) planet_struct__init,
+  NULL,NULL,NULL    /* reserved[123] */
+};
+static const ProtobufCFieldDescriptor universe_state_message__field_descriptors[8] =
+{
+  {
+    "ships",
+    1,
+    PROTOBUF_C_LABEL_REPEATED,
+    PROTOBUF_C_TYPE_MESSAGE,
+    offsetof(UniverseStateMessage, n_ships),
+    offsetof(UniverseStateMessage, ships),
+    &ship_struct__descriptor,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "trash_pieces",
+    2,
+    PROTOBUF_C_LABEL_REPEATED,
+    PROTOBUF_C_TYPE_MESSAGE,
+    offsetof(UniverseStateMessage, n_trash_pieces),
+    offsetof(UniverseStateMessage, trash_pieces),
+    &trash_struct__descriptor,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "planets",
+    3,
+    PROTOBUF_C_LABEL_REPEATED,
+    PROTOBUF_C_TYPE_MESSAGE,
+    offsetof(UniverseStateMessage, n_planets),
+    offsetof(UniverseStateMessage, planets),
+    &planet_struct__descriptor,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "bg_r",
+    4,
+    PROTOBUF_C_LABEL_REQUIRED,
+    PROTOBUF_C_TYPE_FLOAT,
+    0,   /* quantifier_offset */
+    offsetof(UniverseStateMessage, bg_r),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "bg_g",
+    5,
+    PROTOBUF_C_LABEL_REQUIRED,
+    PROTOBUF_C_TYPE_FLOAT,
+    0,   /* quantifier_offset */
+    offsetof(UniverseStateMessage, bg_g),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "bg_b",
+    6,
+    PROTOBUF_C_LABEL_REQUIRED,
+    PROTOBUF_C_TYPE_FLOAT,
+    0,   /* quantifier_offset */
+    offsetof(UniverseStateMessage, bg_b),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "bg_a",
+    7,
+    PROTOBUF_C_LABEL_REQUIRED,
+    PROTOBUF_C_TYPE_FLOAT,
+    0,   /* quantifier_offset */
+    offsetof(UniverseStateMessage, bg_a),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "game_over",
+    8,
+    PROTOBUF_C_LABEL_REQUIRED,
+    PROTOBUF_C_TYPE_BOOL,
+    0,   /* quantifier_offset */
+    offsetof(UniverseStateMessage, game_over),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+};
+static const unsigned universe_state_message__field_indices_by_name[] = {
+  6,   /* field[6] = bg_a */
+  5,   /* field[5] = bg_b */
+  4,   /* field[4] = bg_g */
+  3,   /* field[3] = bg_r */
+  7,   /* field[7] = game_over */
+  2,   /* field[2] = planets */
+  0,   /* field[0] = ships */
+  1,   /* field[1] = trash_pieces */
+};
+static const ProtobufCIntRange universe_state_message__number_ranges[1 + 1] =
+{
+  { 1, 0 },
+  { 0, 8 }
+};
+const ProtobufCMessageDescriptor universe_state_message__descriptor =
+{
+  PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
+  "UniverseStateMessage",
+  "UniverseStateMessage",
+  "UniverseStateMessage",
+  "",
+  sizeof(UniverseStateMessage),
+  8,
+  universe_state_message__field_descriptors,
+  universe_state_message__field_indices_by_name,
+  1,  universe_state_message__number_ranges,
+  (ProtobufCMessageInit) universe_state_message__init,
   NULL,NULL,NULL    /* reserved[123] */
 };
 static const ProtobufCEnumValue client_message_type__enum_values_by_number[3] =

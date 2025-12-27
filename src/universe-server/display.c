@@ -163,7 +163,7 @@ void _DrawGameOver(SDL_Renderer* renderer, GameState* game_state) {
 void Draw(SDL_Renderer* renderer, GameState* game_state) {
 
     //set background color to whiteish gray
-    SDL_SetRenderDrawColor(renderer, 200, 200, 200, 255);
+    SDL_SetRenderDrawColor(renderer, game_state->bg_r, game_state->bg_g, game_state->bg_b, game_state->bg_a);
     SDL_RenderClear(renderer);
 
     //for each of the GameStates object vectors, we make a draw loop.

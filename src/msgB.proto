@@ -1,28 +1,5 @@
 syntax = "proto2";
 
-//Mensagem enviada pelo cliente
-//Transporta como informação todos as teclas
-//De direção que foram direcionadas
-
-message client{
-    required uint64 key         = 1;
-    required uint64 instruction = 2;
-}
-
-message UniverseData{
-    required bytes  Planets = 1;
-    required bytes  Ships   = 2;
-    required bytes  Trash   = 3;
-    required double myPlanet= 4;
-}
-
-message SimplifiedUniverseData{
-    required bytes  planetTrashCount    = 1;
-    required bytes  trashPerShip        = 2;
-    required double freeTrash           = 3;
-    required double maxTrash            = 4;
-}
-
 //============Client/server connections and moves===================
 enum ClientMessageType {
     CONNECT = 0;
@@ -69,4 +46,50 @@ message ClientMessage {
 message ServerMessage {
     required ServerMessageType msg_type = 1;
     required string id = 2;
+}
+
+//============Server/Client universe publish===================
+
+//periodically the server sends the universe state to the clients
+//the clients dont receive the entire game state, just what they need to render it
+//so, ships, trash and planets
+
+//we have to define the structure of those objects here too
+
+//clients need to know the position, angle and name of each ship
+message ShipStruct{
+    required string name = 1;
+    required float x = 2;
+    required float y = 3;
+    required float angle = 4;
+}
+
+//clients need to know the position of each trash piece
+message TrashStruct{
+    required float x = 1;
+    required float y = 2;
+}
+
+//clients need to know the position, name and the index of the recycler planet
+message PlanetStruct{
+    required string name = 1;
+    required float x = 2;
+    required float y = 3;
+    required int32 recycler_index = 4; //index of recycler planet
+}
+
+message UniverseStateMessage {
+    //repeated because they're all vectors
+    repeated ShipStruct ships = 1;
+    repeated TrashStruct trash_pieces = 2;
+    repeated PlanetStruct planets = 3;
+
+    //bg color
+    required float bg_r = 4;
+    required float bg_g = 5;
+    required float bg_b = 6;
+    required float bg_a = 7;
+
+    //need to know gameover state
+    required bool game_over = 8;
 }

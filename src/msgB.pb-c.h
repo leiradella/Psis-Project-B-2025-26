@@ -15,11 +15,12 @@ PROTOBUF_C__BEGIN_DECLS
 #endif
 
 
-typedef struct Client Client;
-typedef struct UniverseData UniverseData;
-typedef struct SimplifiedUniverseData SimplifiedUniverseData;
 typedef struct ClientMessage ClientMessage;
 typedef struct ServerMessage ServerMessage;
+typedef struct ShipStruct ShipStruct;
+typedef struct TrashStruct TrashStruct;
+typedef struct PlanetStruct PlanetStruct;
+typedef struct UniverseStateMessage UniverseStateMessage;
 
 
 /* --- enums --- */
@@ -40,43 +41,6 @@ typedef enum _ServerMessageType {
 } ServerMessageType;
 
 /* --- messages --- */
-
-struct  Client
-{
-  ProtobufCMessage base;
-  uint64_t key;
-  uint64_t instruction;
-};
-#define CLIENT__INIT \
- { PROTOBUF_C_MESSAGE_INIT (&client__descriptor) \
-    , 0, 0 }
-
-
-struct  UniverseData
-{
-  ProtobufCMessage base;
-  ProtobufCBinaryData planets;
-  ProtobufCBinaryData ships;
-  ProtobufCBinaryData trash;
-  double myplanet;
-};
-#define UNIVERSE_DATA__INIT \
- { PROTOBUF_C_MESSAGE_INIT (&universe_data__descriptor) \
-    , {0,NULL}, {0,NULL}, {0,NULL}, 0 }
-
-
-struct  SimplifiedUniverseData
-{
-  ProtobufCMessage base;
-  ProtobufCBinaryData planettrashcount;
-  ProtobufCBinaryData trashpership;
-  double freetrash;
-  double maxtrash;
-};
-#define SIMPLIFIED_UNIVERSE_DATA__INIT \
- { PROTOBUF_C_MESSAGE_INIT (&simplified_universe_data__descriptor) \
-    , {0,NULL}, {0,NULL}, 0, 0 }
-
 
 struct  ClientMessage
 {
@@ -117,63 +81,84 @@ struct  ServerMessage
     , SERVER_MESSAGE_TYPE__OK, NULL }
 
 
-/* Client methods */
-void   client__init
-                     (Client         *message);
-size_t client__get_packed_size
-                     (const Client   *message);
-size_t client__pack
-                     (const Client   *message,
-                      uint8_t             *out);
-size_t client__pack_to_buffer
-                     (const Client   *message,
-                      ProtobufCBuffer     *buffer);
-Client *
-       client__unpack
-                     (ProtobufCAllocator  *allocator,
-                      size_t               len,
-                      const uint8_t       *data);
-void   client__free_unpacked
-                     (Client *message,
-                      ProtobufCAllocator *allocator);
-/* UniverseData methods */
-void   universe_data__init
-                     (UniverseData         *message);
-size_t universe_data__get_packed_size
-                     (const UniverseData   *message);
-size_t universe_data__pack
-                     (const UniverseData   *message,
-                      uint8_t             *out);
-size_t universe_data__pack_to_buffer
-                     (const UniverseData   *message,
-                      ProtobufCBuffer     *buffer);
-UniverseData *
-       universe_data__unpack
-                     (ProtobufCAllocator  *allocator,
-                      size_t               len,
-                      const uint8_t       *data);
-void   universe_data__free_unpacked
-                     (UniverseData *message,
-                      ProtobufCAllocator *allocator);
-/* SimplifiedUniverseData methods */
-void   simplified_universe_data__init
-                     (SimplifiedUniverseData         *message);
-size_t simplified_universe_data__get_packed_size
-                     (const SimplifiedUniverseData   *message);
-size_t simplified_universe_data__pack
-                     (const SimplifiedUniverseData   *message,
-                      uint8_t             *out);
-size_t simplified_universe_data__pack_to_buffer
-                     (const SimplifiedUniverseData   *message,
-                      ProtobufCBuffer     *buffer);
-SimplifiedUniverseData *
-       simplified_universe_data__unpack
-                     (ProtobufCAllocator  *allocator,
-                      size_t               len,
-                      const uint8_t       *data);
-void   simplified_universe_data__free_unpacked
-                     (SimplifiedUniverseData *message,
-                      ProtobufCAllocator *allocator);
+/*
+ *clients need to know the position, angle and name of each ship
+ */
+struct  ShipStruct
+{
+  ProtobufCMessage base;
+  char *name;
+  float x;
+  float y;
+  float angle;
+};
+#define SHIP_STRUCT__INIT \
+ { PROTOBUF_C_MESSAGE_INIT (&ship_struct__descriptor) \
+    , NULL, 0, 0, 0 }
+
+
+/*
+ *clients need to know the position of each trash piece
+ */
+struct  TrashStruct
+{
+  ProtobufCMessage base;
+  float x;
+  float y;
+};
+#define TRASH_STRUCT__INIT \
+ { PROTOBUF_C_MESSAGE_INIT (&trash_struct__descriptor) \
+    , 0, 0 }
+
+
+/*
+ *clients need to know the position, name and the index of the recycler planet
+ */
+struct  PlanetStruct
+{
+  ProtobufCMessage base;
+  char *name;
+  float x;
+  float y;
+  /*
+   *index of recycler planet
+   */
+  int32_t recycler_index;
+};
+#define PLANET_STRUCT__INIT \
+ { PROTOBUF_C_MESSAGE_INIT (&planet_struct__descriptor) \
+    , NULL, 0, 0, 0 }
+
+
+struct  UniverseStateMessage
+{
+  ProtobufCMessage base;
+  /*
+   *repeated because they're all vectors
+   */
+  size_t n_ships;
+  ShipStruct **ships;
+  size_t n_trash_pieces;
+  TrashStruct **trash_pieces;
+  size_t n_planets;
+  PlanetStruct **planets;
+  /*
+   *bg color
+   */
+  float bg_r;
+  float bg_g;
+  float bg_b;
+  float bg_a;
+  /*
+   *need to know gameover state
+   */
+  protobuf_c_boolean game_over;
+};
+#define UNIVERSE_STATE_MESSAGE__INIT \
+ { PROTOBUF_C_MESSAGE_INIT (&universe_state_message__descriptor) \
+    , 0,NULL, 0,NULL, 0,NULL, 0, 0, 0, 0, 0 }
+
+
 /* ClientMessage methods */
 void   client_message__init
                      (ClientMessage         *message);
@@ -212,22 +197,101 @@ ServerMessage *
 void   server_message__free_unpacked
                      (ServerMessage *message,
                       ProtobufCAllocator *allocator);
+/* ShipStruct methods */
+void   ship_struct__init
+                     (ShipStruct         *message);
+size_t ship_struct__get_packed_size
+                     (const ShipStruct   *message);
+size_t ship_struct__pack
+                     (const ShipStruct   *message,
+                      uint8_t             *out);
+size_t ship_struct__pack_to_buffer
+                     (const ShipStruct   *message,
+                      ProtobufCBuffer     *buffer);
+ShipStruct *
+       ship_struct__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data);
+void   ship_struct__free_unpacked
+                     (ShipStruct *message,
+                      ProtobufCAllocator *allocator);
+/* TrashStruct methods */
+void   trash_struct__init
+                     (TrashStruct         *message);
+size_t trash_struct__get_packed_size
+                     (const TrashStruct   *message);
+size_t trash_struct__pack
+                     (const TrashStruct   *message,
+                      uint8_t             *out);
+size_t trash_struct__pack_to_buffer
+                     (const TrashStruct   *message,
+                      ProtobufCBuffer     *buffer);
+TrashStruct *
+       trash_struct__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data);
+void   trash_struct__free_unpacked
+                     (TrashStruct *message,
+                      ProtobufCAllocator *allocator);
+/* PlanetStruct methods */
+void   planet_struct__init
+                     (PlanetStruct         *message);
+size_t planet_struct__get_packed_size
+                     (const PlanetStruct   *message);
+size_t planet_struct__pack
+                     (const PlanetStruct   *message,
+                      uint8_t             *out);
+size_t planet_struct__pack_to_buffer
+                     (const PlanetStruct   *message,
+                      ProtobufCBuffer     *buffer);
+PlanetStruct *
+       planet_struct__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data);
+void   planet_struct__free_unpacked
+                     (PlanetStruct *message,
+                      ProtobufCAllocator *allocator);
+/* UniverseStateMessage methods */
+void   universe_state_message__init
+                     (UniverseStateMessage         *message);
+size_t universe_state_message__get_packed_size
+                     (const UniverseStateMessage   *message);
+size_t universe_state_message__pack
+                     (const UniverseStateMessage   *message,
+                      uint8_t             *out);
+size_t universe_state_message__pack_to_buffer
+                     (const UniverseStateMessage   *message,
+                      ProtobufCBuffer     *buffer);
+UniverseStateMessage *
+       universe_state_message__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data);
+void   universe_state_message__free_unpacked
+                     (UniverseStateMessage *message,
+                      ProtobufCAllocator *allocator);
 /* --- per-message closures --- */
 
-typedef void (*Client_Closure)
-                 (const Client *message,
-                  void *closure_data);
-typedef void (*UniverseData_Closure)
-                 (const UniverseData *message,
-                  void *closure_data);
-typedef void (*SimplifiedUniverseData_Closure)
-                 (const SimplifiedUniverseData *message,
-                  void *closure_data);
 typedef void (*ClientMessage_Closure)
                  (const ClientMessage *message,
                   void *closure_data);
 typedef void (*ServerMessage_Closure)
                  (const ServerMessage *message,
+                  void *closure_data);
+typedef void (*ShipStruct_Closure)
+                 (const ShipStruct *message,
+                  void *closure_data);
+typedef void (*TrashStruct_Closure)
+                 (const TrashStruct *message,
+                  void *closure_data);
+typedef void (*PlanetStruct_Closure)
+                 (const PlanetStruct *message,
+                  void *closure_data);
+typedef void (*UniverseStateMessage_Closure)
+                 (const UniverseStateMessage *message,
                   void *closure_data);
 
 /* --- services --- */
@@ -237,11 +301,12 @@ typedef void (*ServerMessage_Closure)
 
 extern const ProtobufCEnumDescriptor    client_message_type__descriptor;
 extern const ProtobufCEnumDescriptor    server_message_type__descriptor;
-extern const ProtobufCMessageDescriptor client__descriptor;
-extern const ProtobufCMessageDescriptor universe_data__descriptor;
-extern const ProtobufCMessageDescriptor simplified_universe_data__descriptor;
 extern const ProtobufCMessageDescriptor client_message__descriptor;
 extern const ProtobufCMessageDescriptor server_message__descriptor;
+extern const ProtobufCMessageDescriptor ship_struct__descriptor;
+extern const ProtobufCMessageDescriptor trash_struct__descriptor;
+extern const ProtobufCMessageDescriptor planet_struct__descriptor;
+extern const ProtobufCMessageDescriptor universe_state_message__descriptor;
 
 PROTOBUF_C__END_DECLS
 

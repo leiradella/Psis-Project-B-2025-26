@@ -102,30 +102,43 @@ typedef struct Ship {
 typedef struct GameState {
     int universe_size;
 
+    //planets
     Planet* planets;
     int n_planets;
     int recycler_planet_index;
     int planet_change_rate;
     Uint32 last_planet_change_time;
 
+    //trashes
     Trash *trashes;
     int n_trashes;
     int max_trash;
     int trash_gen_rate;
     Uint32 last_trash_gen_time;
 
+    //ships
     Ship* ships;
     int n_ships;
 
+    //game over flag
     int is_game_over;
+
+    //font
     TTF_Font* font;
 
+    //networking ports
     int rep_port;
     int pub_port;
 
     //mutex for thread safety
     pthread_mutex_t mutex_enable; //for enabling/disabling ships
     pthread_mutex_t mutex_keys;   //for updating ship controls with client input
+
+    //bg color
+    int bg_r;
+    int bg_g;
+    int bg_b;
+    int bg_a;
 
 } GameState;
 
