@@ -133,6 +133,7 @@ typedef struct GameState {
     //mutex for thread safety
     pthread_mutex_t mutex_enable; //for enabling/disabling ships
     pthread_mutex_t mutex_keys;   //for updating ship controls with client input
+    pthread_mutex_t mutex_snapshot; //for updating the gamestate snapshot
 
     //bg color
     int bg_r;
@@ -141,6 +142,25 @@ typedef struct GameState {
     int bg_a;
 
 } GameState;
+
+typedef struct GameStateSnapshot {
+
+    Ship* ships;
+    int n_ships;
+    Trash* trashes;
+    int n_trashes;
+    Planet* planets;
+    int n_planets;
+
+    int bg_r;
+    int bg_g;
+    int bg_b;
+    int bg_a;
+
+    int is_game_over;
+
+    int universe_size;
+} GameStateSnapshot;
 
 //Vector creation from x and y components
 Vector MakeVector(float x, float y);
@@ -184,5 +204,12 @@ GameState* CreateInitialUniverseState(const char* config_name, int seed);
 
 //DESTROY THE UNIVERSE (and free all allocated memory)
 void DestroyUniverse(GameState** game_state);
+
+//create the snapshot of the current gamestate
+//for the publish thread to send to clients
+GameStateSnapshot* CreateUniverseSnapshot(GameState* game_state);
+
+//update the gamestate snapshot from the current gamestate
+void UpdateGameStateSnapshot(GameState* game_state, GameStateSnapshot* snapshot);
 
 #endif

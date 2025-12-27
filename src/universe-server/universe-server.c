@@ -15,6 +15,7 @@
 void *ClientCommunicationThread(void* arg) {
     CommunicationManager* comm = (CommunicationManager*)arg;
     if (comm == NULL) {
+        printf("Communication thread received NULL argument (should have received CommunicationManager*). Exiting thread...\n");
         pthread_exit(NULL);
     }
 
@@ -39,6 +40,37 @@ void *ClientCommunicationThread(void* arg) {
     pthread_exit(NULL);
 }
 
+//thread for publishing universe state to clients
+void *UniversePublishThread(void* arg) {
+    CommunicationManager* comm = (CommunicationManager*)arg;
+    if (comm == NULL) {
+        printf("Communication thread received NULL argument (should have received CommunicationManager*). Exiting thread...\n");
+        pthread_exit(NULL);
+    }
+
+    //send universe state at fixed intervals
+    const int publish_interval_ms = 10;
+    Uint32 last_publish_time = SDL_GetTicks();
+
+    int stop = comm->terminate_thread;
+
+    while (!stop) {
+
+        Uint32 current_time = SDL_GetTicks();
+        if (current_time - last_publish_time >= (Uint32)publish_interval_ms) {
+            //time to publish
+            SendUniverseState(comm);
+            last_publish_time = current_time;
+        }
+
+        //we need to do this because main thread accesses terminate_thread
+        pthread_mutex_lock(&comm->mutex_terminate);
+        stop = comm->terminate_thread;
+        pthread_mutex_unlock(&comm->mutex_terminate);
+    }
+    pthread_exit(NULL);
+}
+
 int main(int argc, char* argv[]) {
 
     (void)argc; (void)argv; //unused
@@ -54,8 +86,16 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    //create gamestate snapshot for communication manager
+    GameStateSnapshot* snapshot = CreateUniverseSnapshot(game_state);
+    if (snapshot == NULL) {
+        printf("Failed to create gamestate snapshot. Exiting...\n");
+        DestroyUniverse(&game_state);
+        return 1;
+    }
+
     //initialize communications
-    CommunicationManager* comm = CommunicationInit(game_state); //cant have more clients than ships
+    CommunicationManager* comm = CommunicationInit(game_state, snapshot); //cant have more clients than ships
     if (comm == NULL) {
         printf("Failed to initialize communication manager. Exiting...\n");
         DestroyUniverse(&game_state);
@@ -66,6 +106,20 @@ int main(int argc, char* argv[]) {
     pthread_t comm_thread;
     if (pthread_create(&comm_thread, NULL, ClientCommunicationThread, (void*)comm) != 0) {
         printf("Failed to create communication thread. Exiting...\n");
+        CommunicationQuit(&comm);
+        DestroyUniverse(&game_state);
+        return 1;
+    }
+
+    //start a thread to publish universe state to clients
+    pthread_t publish_thread;
+    if (pthread_create(&publish_thread, NULL, UniversePublishThread, (void*)comm) != 0) {
+        printf("Failed to create universe publish thread. Exiting...\n");
+        //signal communication thread to terminate
+        pthread_mutex_lock(&comm->mutex_terminate);
+        comm->terminate_thread = 1;
+        pthread_mutex_unlock(&comm->mutex_terminate);
+        pthread_join(comm_thread, NULL);
         CommunicationQuit(&comm);
         DestroyUniverse(&game_state);
         return 1;
@@ -152,6 +206,7 @@ int main(int argc, char* argv[]) {
         //update universe at UPDATE_FPS rate
         if (current_time - last_update_time >= UPDATE_INTERVAL) {
             UpdateUniverse(game_state);
+            UpdateGameStateSnapshot(game_state, comm->snapshot);
             last_update_time = current_time;
         }
 

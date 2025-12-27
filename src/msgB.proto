@@ -84,12 +84,15 @@ message UniverseStateMessage {
     repeated TrashStruct trash_pieces = 2;
     repeated PlanetStruct planets = 3;
 
-    //bg color
-    required float bg_r = 4;
-    required float bg_g = 5;
-    required float bg_b = 6;
-    required float bg_a = 7;
+    //universe size
+    required int32 universe_size = 4;
 
     //need to know gameover state
-    required bool game_over = 8;
+    required bool game_over = 5;
+
+    //bg color
+    required int32 bg_r = 6;
+    required int32 bg_g = 7;
+    required int32 bg_b = 8;
+    required int32 bg_a = 9;
 }

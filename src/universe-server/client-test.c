@@ -227,9 +227,40 @@ int main3() {
     return 0;
 }
 
+//client receives universe state messages
+int main4() {
+    //create zmq context and socket
+    void* ctx = zmq_ctx_new();
+    void* socket = zmq_socket(ctx, ZMQ_SUB);
+    //get port
+    char port[32] = "tcp://localhost:6969";
+    //connect to the port
+    zmq_connect(socket, port);
+    //subscribe to all messages
+    zmq_setsockopt(socket, ZMQ_SUBSCRIBE, "", 0);
+    printf("connected to universe state publisher\n");
+
+    while (1) {
+        //receive universe state message
+        uint8_t recv_buf[65536];
+        int recv_len = zmq_recv(socket, recv_buf, sizeof(recv_buf), 0);
+        UniverseStateMessage* universe_msg = universe_state_message__unpack(NULL, recv_len, recv_buf);
+        if (universe_msg == NULL) {
+            printf("Failed to unpack universe state message\n");
+            continue;
+        }
+        printf("Received universe state: %zu ships, %zu trash pieces, %zu planets\n",
+               universe_msg->n_ships,
+               universe_msg->n_trash_pieces,
+               universe_msg->n_planets);
+        universe_state_message__free_unpacked(universe_msg, NULL);
+    }
+}
+ 
 int main(int argc, char* argv[]) {
     main1();
     // main2();
     // main3();
+    // main4();
     return 0;
 }

@@ -23,6 +23,9 @@ typedef struct CommunicationManager {
     //gamestate to enable/disable ships on connect/disconnect
     GameState* game_state;
 
+    //gamestate snapshot for publishing
+    GameStateSnapshot* snapshot;
+
     //flag for thread termination
     int terminate_thread;
     pthread_mutex_t mutex_terminate; //need a mutex because thread reads it and main thread writes it
@@ -46,7 +49,7 @@ typedef struct CommunicationManager {
 
 
 //=== Initialization & Cleanup ===
-CommunicationManager* CommunicationInit(GameState* state);
+CommunicationManager* CommunicationInit(GameState* state, GameStateSnapshot* snapshot);
 void CommunicationQuit(CommunicationManager** comm);
 
 
@@ -58,6 +61,7 @@ int ReceiveClientMessage(CommunicationManager* comm);
 //checks for client timeouts and disconnects them if timed out
 void CheckClientTimeouts(CommunicationManager* comm);
 
-
+//=== Universe State Publishing ===
+void SendUniverseState(CommunicationManager* comm);
 
 #endif //COMMUNICATION_H

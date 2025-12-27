@@ -143,20 +143,24 @@ struct  UniverseStateMessage
   size_t n_planets;
   PlanetStruct **planets;
   /*
-   *bg color
+   *universe size
    */
-  float bg_r;
-  float bg_g;
-  float bg_b;
-  float bg_a;
+  int32_t universe_size;
   /*
    *need to know gameover state
    */
   protobuf_c_boolean game_over;
+  /*
+   *bg color
+   */
+  int32_t bg_r;
+  int32_t bg_g;
+  int32_t bg_b;
+  int32_t bg_a;
 };
 #define UNIVERSE_STATE_MESSAGE__INIT \
  { PROTOBUF_C_MESSAGE_INIT (&universe_state_message__descriptor) \
-    , 0,NULL, 0,NULL, 0,NULL, 0, 0, 0, 0, 0 }
+    , 0,NULL, 0,NULL, 0,NULL, 0, 0, 0, 0, 0, 0 }
 
 
 /* ClientMessage methods */

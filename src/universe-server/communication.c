@@ -21,7 +21,7 @@
 
 #define RECV_TIMEOUT_MS 100 //timeout for zmq recv in ms
 
-CommunicationManager* CommunicationInit(GameState* state) {
+CommunicationManager* CommunicationInit(GameState* state, GameStateSnapshot* snapshot) {
 
     int max_clients = state->n_ships;
 
@@ -32,6 +32,9 @@ CommunicationManager* CommunicationInit(GameState* state) {
 
     //add gamestate reference
     comm->game_state = state;
+
+    //snapshot reference
+    comm->snapshot = snapshot;
 
     //initialize ZMQ context
     comm->context = zmq_ctx_new();
@@ -96,6 +99,8 @@ CommunicationManager* CommunicationInit(GameState* state) {
     return comm;
 }
 
+
+//==========CLIENT/SERVER CONNECT/DISCONNECT/MOVE MESSAGE==========
 void CommunicationQuit(CommunicationManager** comm) {
     if (comm == NULL || *comm == NULL) {
         return;
@@ -407,4 +412,92 @@ void CheckClientTimeouts(CommunicationManager* comm) {
             }
         }
     }
+}
+
+//===========SERVER UNIVERSE PUBLISH=========================
+void SendUniverseState(CommunicationManager* comm) {
+    //start by creating the UniverseState message
+    UniverseStateMessage universe_msg = UNIVERSE_STATE_MESSAGE__INIT;
+
+    //now we can fill in the universe state message
+    pthread_mutex_lock(&comm->game_state->mutex_snapshot);
+    
+    //ships
+    universe_msg.n_ships = comm->snapshot->n_ships;
+    universe_msg.ships = malloc(sizeof(ShipStruct*) * universe_msg.n_ships);
+    for (size_t i = 0; i < universe_msg.n_ships; i++) {
+        //allocate and initialize each ship struct
+        universe_msg.ships[i] = malloc(sizeof(ShipStruct));
+        ship_struct__init(universe_msg.ships[i]);
+        
+        //copy ship data from snapshot
+
+        //name is name char + trash amount inside ship
+        char name_buf[32];
+        snprintf(name_buf, sizeof(name_buf), "%c%d", comm->snapshot->ships[i].name, comm->snapshot->ships[i].trash_amount);
+        universe_msg.ships[i]->name = strdup(name_buf);
+
+        universe_msg.ships[i]->x = comm->snapshot->ships[i].position.x;
+        universe_msg.ships[i]->y = comm->snapshot->ships[i].position.y;
+        universe_msg.ships[i]->angle = comm->snapshot->ships[i].angle;
+    }
+
+    //trashes
+    universe_msg.n_trash_pieces = comm->snapshot->n_trashes;
+    universe_msg.trash_pieces = malloc(sizeof(TrashStruct*) * universe_msg.n_trash_pieces);
+    for (size_t i = 0; i < universe_msg.n_trash_pieces; i++) {
+        //allocate and initialize each trash struct
+        universe_msg.trash_pieces[i] = malloc(sizeof(TrashStruct));
+        trash_struct__init(universe_msg.trash_pieces[i]);
+        universe_msg.trash_pieces[i]->x = comm->snapshot->trashes[i].position.x;
+        universe_msg.trash_pieces[i]->y = comm->snapshot->trashes[i].position.y;
+    }
+
+    //planets
+    universe_msg.n_planets = comm->snapshot->n_planets;
+    universe_msg.planets = malloc(sizeof(PlanetStruct*) * universe_msg.n_planets);
+    for (size_t i = 0; i < universe_msg.n_planets; i++) {
+        //allocate and initialize each planet struct
+        universe_msg.planets[i] = malloc(sizeof(PlanetStruct));
+        planet_struct__init(universe_msg.planets[i]);
+
+        //name is name char + trash amount inside planet
+        char name_buf[32];
+        snprintf(name_buf, sizeof(name_buf), "%c%d", comm->snapshot->planets[i].name, comm->snapshot->planets[i].trash_amount);
+        universe_msg.planets[i]->name = strdup(name_buf);
+
+        universe_msg.planets[i]->x = comm->snapshot->planets[i].position.x;
+        universe_msg.planets[i]->y = comm->snapshot->planets[i].position.y;
+        universe_msg.planets[i]->recycler_index = comm->game_state->recycler_planet_index;
+    }
+
+    //bg color
+    universe_msg.bg_r = comm->snapshot->bg_r;
+    universe_msg.bg_g = comm->snapshot->bg_g;
+    universe_msg.bg_b = comm->snapshot->bg_b;
+    universe_msg.bg_a = comm->snapshot->bg_a;
+
+    //game over state
+    universe_msg.game_over = (protobuf_c_boolean)comm->snapshot->is_game_over;
+
+    //universe size
+    universe_msg.universe_size = (int32_t)comm->snapshot->universe_size;
+
+    //unlock snapshot after reading
+    pthread_mutex_unlock(&comm->game_state->mutex_snapshot);
+    
+    //serialize and send the message
+    size_t msg_len = universe_state_message__get_packed_size(&universe_msg);
+    uint8_t* msg_buf = malloc(msg_len);
+    universe_state_message__pack(&universe_msg, msg_buf);
+    
+    zmq_send(comm->client_pub_socket, msg_buf, msg_len, 0);
+    
+    //cleanup
+    for (size_t i = 0; i < universe_msg.n_ships; i++) {
+        free(universe_msg.ships[i]->name);
+        free(universe_msg.ships[i]);
+    }
+    free(universe_msg.ships);
+    free(msg_buf);
 }

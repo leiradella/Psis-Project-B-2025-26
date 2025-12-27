@@ -332,3 +332,87 @@ void DestroyUniverse(GameState** game_state) {
     free(*game_state);
     *game_state = NULL;
 }
+
+GameStateSnapshot* CreateUniverseSnapshot(GameState* game_state) {
+    //create snapshot struct
+    GameStateSnapshot* snapshot = malloc(sizeof(GameStateSnapshot));
+    if (snapshot == NULL) {
+        return NULL;
+    }
+
+    //initialize snapshot data
+    snapshot->n_ships = game_state->n_ships;
+    snapshot->ships = malloc(sizeof(Ship) * snapshot->n_ships);
+    if (snapshot->ships == NULL) {
+        free(snapshot);
+        return NULL;
+    }
+
+    snapshot->n_trashes = game_state->n_trashes;
+    snapshot->trashes = malloc(sizeof(Trash) * game_state->max_trash);
+    if (snapshot->trashes == NULL) {
+        free(snapshot->ships);
+        free(snapshot);
+        return NULL;
+    }
+
+    snapshot->n_planets = game_state->n_planets;
+    snapshot->planets = malloc(sizeof(Planet) * snapshot->n_planets);
+    if (snapshot->planets == NULL) {
+        free(snapshot->trashes);
+        free(snapshot->ships);
+        free(snapshot);
+        return NULL;
+    }
+
+    snapshot->bg_r = game_state->bg_r;
+    snapshot->bg_g = game_state->bg_g;
+    snapshot->bg_b = game_state->bg_b;
+    snapshot->bg_a = game_state->bg_a;
+
+    snapshot->is_game_over = game_state->is_game_over;
+
+    snapshot->universe_size = game_state->universe_size;
+
+    return snapshot;
+}
+
+void UpdateGameStateSnapshot(GameState* game_state, GameStateSnapshot* snapshot) {
+    //lock the snapshot mutex because the publish thread may be reading it
+    pthread_mutex_lock(&game_state->mutex_snapshot);
+
+    //update ships
+    snapshot->n_ships = game_state->n_ships;
+    for (int i=0; i<snapshot->n_ships; i++) {
+        snapshot->ships[i] = game_state->ships[i];
+    }
+
+    //update trashes
+    snapshot->n_trashes = game_state->n_trashes;
+    for (int i=0; i<snapshot->n_trashes; i++) {
+        snapshot->trashes[i] = game_state->trashes[i];
+    }
+
+    //update planets
+    snapshot->n_planets = game_state->n_planets;
+    for (int i=0; i<snapshot->n_planets; i++) {
+        snapshot->planets[i] = game_state->planets[i];
+    }
+
+    //update bg color
+    snapshot->bg_r = game_state->bg_r;
+    snapshot->bg_g = game_state->bg_g;
+    snapshot->bg_b = game_state->bg_b;
+    snapshot->bg_a = game_state->bg_a;
+
+    //update game over flag
+    snapshot->is_game_over = game_state->is_game_over;
+
+    //update universe size
+    snapshot->universe_size = game_state->universe_size;
+
+    //unlock mutex
+    pthread_mutex_unlock(&game_state->mutex_snapshot);
+
+    return;
+}

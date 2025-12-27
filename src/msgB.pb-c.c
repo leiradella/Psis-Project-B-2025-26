@@ -688,7 +688,7 @@ const ProtobufCMessageDescriptor planet_struct__descriptor =
   (ProtobufCMessageInit) planet_struct__init,
   NULL,NULL,NULL    /* reserved[123] */
 };
-static const ProtobufCFieldDescriptor universe_state_message__field_descriptors[8] =
+static const ProtobufCFieldDescriptor universe_state_message__field_descriptors[9] =
 {
   {
     "ships",
@@ -727,48 +727,12 @@ static const ProtobufCFieldDescriptor universe_state_message__field_descriptors[
     0,NULL,NULL    /* reserved1,reserved2, etc */
   },
   {
-    "bg_r",
+    "universe_size",
     4,
     PROTOBUF_C_LABEL_REQUIRED,
-    PROTOBUF_C_TYPE_FLOAT,
+    PROTOBUF_C_TYPE_INT32,
     0,   /* quantifier_offset */
-    offsetof(UniverseStateMessage, bg_r),
-    NULL,
-    NULL,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-  {
-    "bg_g",
-    5,
-    PROTOBUF_C_LABEL_REQUIRED,
-    PROTOBUF_C_TYPE_FLOAT,
-    0,   /* quantifier_offset */
-    offsetof(UniverseStateMessage, bg_g),
-    NULL,
-    NULL,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-  {
-    "bg_b",
-    6,
-    PROTOBUF_C_LABEL_REQUIRED,
-    PROTOBUF_C_TYPE_FLOAT,
-    0,   /* quantifier_offset */
-    offsetof(UniverseStateMessage, bg_b),
-    NULL,
-    NULL,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-  {
-    "bg_a",
-    7,
-    PROTOBUF_C_LABEL_REQUIRED,
-    PROTOBUF_C_TYPE_FLOAT,
-    0,   /* quantifier_offset */
-    offsetof(UniverseStateMessage, bg_a),
+    offsetof(UniverseStateMessage, universe_size),
     NULL,
     NULL,
     0,             /* flags */
@@ -776,7 +740,7 @@ static const ProtobufCFieldDescriptor universe_state_message__field_descriptors[
   },
   {
     "game_over",
-    8,
+    5,
     PROTOBUF_C_LABEL_REQUIRED,
     PROTOBUF_C_TYPE_BOOL,
     0,   /* quantifier_offset */
@@ -786,21 +750,70 @@ static const ProtobufCFieldDescriptor universe_state_message__field_descriptors[
     0,             /* flags */
     0,NULL,NULL    /* reserved1,reserved2, etc */
   },
+  {
+    "bg_r",
+    6,
+    PROTOBUF_C_LABEL_REQUIRED,
+    PROTOBUF_C_TYPE_INT32,
+    0,   /* quantifier_offset */
+    offsetof(UniverseStateMessage, bg_r),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "bg_g",
+    7,
+    PROTOBUF_C_LABEL_REQUIRED,
+    PROTOBUF_C_TYPE_INT32,
+    0,   /* quantifier_offset */
+    offsetof(UniverseStateMessage, bg_g),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "bg_b",
+    8,
+    PROTOBUF_C_LABEL_REQUIRED,
+    PROTOBUF_C_TYPE_INT32,
+    0,   /* quantifier_offset */
+    offsetof(UniverseStateMessage, bg_b),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "bg_a",
+    9,
+    PROTOBUF_C_LABEL_REQUIRED,
+    PROTOBUF_C_TYPE_INT32,
+    0,   /* quantifier_offset */
+    offsetof(UniverseStateMessage, bg_a),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
 };
 static const unsigned universe_state_message__field_indices_by_name[] = {
-  6,   /* field[6] = bg_a */
-  5,   /* field[5] = bg_b */
-  4,   /* field[4] = bg_g */
-  3,   /* field[3] = bg_r */
-  7,   /* field[7] = game_over */
+  8,   /* field[8] = bg_a */
+  7,   /* field[7] = bg_b */
+  6,   /* field[6] = bg_g */
+  5,   /* field[5] = bg_r */
+  4,   /* field[4] = game_over */
   2,   /* field[2] = planets */
   0,   /* field[0] = ships */
   1,   /* field[1] = trash_pieces */
+  3,   /* field[3] = universe_size */
 };
 static const ProtobufCIntRange universe_state_message__number_ranges[1 + 1] =
 {
   { 1, 0 },
-  { 0, 8 }
+  { 0, 9 }
 };
 const ProtobufCMessageDescriptor universe_state_message__descriptor =
 {
@@ -810,7 +823,7 @@ const ProtobufCMessageDescriptor universe_state_message__descriptor =
   "UniverseStateMessage",
   "",
   sizeof(UniverseStateMessage),
-  8,
+  9,
   universe_state_message__field_descriptors,
   universe_state_message__field_indices_by_name,
   1,  universe_state_message__number_ranges,
