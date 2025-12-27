@@ -28,6 +28,9 @@ void *ClientCommunicationThread(void* arg) {
             printf("Error receiving client message.\n");
         }
 
+        //check for client timeouts
+        CheckClientTimeouts(comm);
+
         //we need to do this because main thread accesses terminate_thread
         pthread_mutex_lock(&comm->mutex_terminate);
         stop = comm->terminate_thread;

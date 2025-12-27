@@ -8,9 +8,12 @@
 #include <zmq.h> //zmq to send/receive
 #include "../msgB.pb-c.h" //protobud for message structure
 
+#define CLIENT_TIMEOUT_SEC 30 //time in seconds before a client is considered disconnected
+
 typedef struct ClientID {
     int ship_index;     //index of the ship assigned to this client
     char* connection_id;  //Unique connection ID for this client
+    Uint32 last_active_time; //last time we received a message from this client
 } ClientID;
 
 //communication manager holding all ZMQ sockets
@@ -39,9 +42,6 @@ typedef struct CommunicationManager {
     
     //======dashboard communication======
     void* dashboard_rep_socket;     //REP: handles dashboard requests
-
-
-
 } CommunicationManager;
 
 
@@ -51,42 +51,13 @@ void CommunicationQuit(CommunicationManager** comm);
 
 
 //=== Client Communication ===
-
-//Process incoming client messages (connect, disconnect, moves)
-//Uses zmq_poll to check for messages without blocking
-//Returns: 1 if message processed, 0 if no message, -1 on error
+//receives a client message and processes it
+//1 on success, 0 on no message, -1 on error
 int ReceiveClientMessage(CommunicationManager* comm);
 
-//Send response to client (connection response or move acknowledgment)
-//Uses ZMQ identity of last received message to route reply
-int client_send_response(CommunicationManager* comm, ServerMessage* msg, uint8_t* identity, size_t identity_size);
-
-//Broadcast game state to all connected clients via PUB socket
-int client_broadcast_game_state(CommunicationManager* comm, UniverseData* data);
+//checks for client timeouts and disconnects them if timed out
+void CheckClientTimeouts(CommunicationManager* comm);
 
 
-//=== Dashboard Communication ===
-
-//Process incoming dashboard request
-//Returns: 1 if message processed, 0 if no message, -1 on error
-int dashboard_receive_and_process(CommunicationManager* comm);
-
-//Send response to dashboard with simplified universe data
-int dashboard_send_response(CommunicationManager* comm, SimplifiedUniverseData* data);
-
-
-//=== Message Handling Helpers ===
-
-//Deserialize received protobuf messages
-ClientMessage* deserialize_client_connect(void* data, size_t size);
-Client* deserialize_client_move(void* data, size_t size);
-
-//Serialize protobuf messages for sending
-void* serialize_server_connect(ServerMessage* msg, size_t* out_size);
-void* serialize_universe_data(UniverseData* data, size_t* out_size);
-void* serialize_simplified_data(SimplifiedUniverseData* data, size_t* out_size);
-
-//Free serialized message buffers
-void free_serialized_message(void* buffer);
 
 #endif //COMMUNICATION_H

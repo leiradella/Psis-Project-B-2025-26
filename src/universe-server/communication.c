@@ -167,7 +167,11 @@ void _ProcessClientConnect(CommunicationManager* comm) {
         
         //invalid ID for error
         id[0] = '\0';
+
+        printf("Connect message with unknown client ID received.\n");
     } else {
+        printf("CLIENT CONNECTED\n");
+
         //communication manager updates
         comm->num_connected++;
 
@@ -195,6 +199,9 @@ void _ProcessClientConnect(CommunicationManager* comm) {
         pthread_mutex_unlock(&comm->game_state->mutex_enable);
         //now when the client sends a move message with this id, we move ship at ship_index
         //when a new client connects they are guaranteed to not get the same ship index
+
+        //set last active time
+        comm->clients[slot].last_active_time = SDL_GetTicks();
 
         //prepare success response
         msg_type = SERVER_CONNECT_OK;
@@ -227,7 +234,11 @@ void _ProcessClientDisconnect(CommunicationManager* comm, char* client_id) {
     if (slot == -1) {
         //unknown ship_id, send error response (must always respond in REQ-REP)
         msg_type = SERVER_CONNECT_ERROR;
+
+        printf("Disconnect message with unknown client ID received.\n");
     } else {
+        printf("CLIENT DISCONNECTED\n");
+
         //communication manager updates
         comm->num_connected--;
         comm->clients[slot].ship_index = -1;
@@ -267,7 +278,13 @@ void _ProcessClientMove(CommunicationManager* comm, char* client_id, protobuf_c_
     if (slot == -1) {
         //unknown client_id, respond with error
         msg_type = SERVER_CONNECT_ERROR;
+        printf("Move message with unknown client ID received.\n");
+
     } else {
+        printf("CLIENT MOVE MESSAGE RECEIVED\n");
+
+        //set last active time
+        comm->clients[slot].last_active_time = SDL_GetTicks();
 
         //decypher keys
         //lock
@@ -336,17 +353,12 @@ int ReceiveClientMessage(CommunicationManager* comm) {
     int return_value = -1;
     //process message
     if (client_msg->msg_type == CLIENT_CONNECT) {
-        printf("CLIENT CONNECTED\n");
         _ProcessClientConnect(comm);
         return_value = 1;
     } else if (client_msg->msg_type == CLIENT_DISCONNECT) {
-        printf("CLIENT DISCONNECTED\n");
         _ProcessClientDisconnect(comm, client_msg->id);
         return_value = 1;
     } else if (client_msg->msg_type == CLIENT_MOVE) {
-        //process move message
-        printf("CLIENT MOVE MESSAGE RECEIVED\n");
-
         //transform the keys into an array of booleans
         protobuf_c_boolean keys[8];
         keys[0] = client_msg->wkeydown;
@@ -370,4 +382,27 @@ int ReceiveClientMessage(CommunicationManager* comm) {
     client_message__free_unpacked(client_msg, NULL);
     zmq_msg_close(&msg);
     return return_value;
+}
+
+void CheckClientTimeouts(CommunicationManager* comm) {
+    if (comm == NULL) {
+        return;
+    }
+
+    Uint32 current_time = SDL_GetTicks();
+
+    for (int i = 0; i < comm->max_clients; i++) {
+        if (comm->clients[i].ship_index != -1) {
+            //active clients
+
+            //get ticks
+            Uint32 last_active = comm->clients[i].last_active_time;
+
+            //if the difference between current time and last active time exceeds timeout, disconnect
+            if ((current_time - last_active) > CLIENT_TIMEOUT_SEC * 1000) {
+                printf("Client with ship index %d timed out. Disconnecting...\n", comm->clients[i].ship_index);
+                _ProcessClientDisconnect(comm, comm->clients[i].connection_id);
+            }
+        }
+    }
 }
