@@ -19,6 +19,8 @@
 #define SERVER_CONNECT_OK SERVER_MESSAGE_TYPE__OK
 #define SERVER_CONNECT_ERROR SERVER_MESSAGE_TYPE__ERROR
 
+#define RECV_TIMEOUT_MS 100 //timeout for zmq recv in ms
+
 CommunicationManager* CommunicationInit(GameState* state) {
 
     int max_clients = state->n_ships;
@@ -73,7 +75,7 @@ CommunicationManager* CommunicationInit(GameState* state) {
     comm->client_rep_socket = zmq_socket(comm->context, ZMQ_REP);
     
     //set receive timeout so thread can check terminate flag
-    int recv_timeout = 100; //100ms timeout
+    int recv_timeout = RECV_TIMEOUT_MS; //timeout in ms
     zmq_setsockopt(comm->client_rep_socket, ZMQ_RCVTIMEO, &recv_timeout, sizeof(recv_timeout));
     
     zmq_bind(comm->client_rep_socket, rep_port_str);
