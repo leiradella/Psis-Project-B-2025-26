@@ -16,8 +16,16 @@ typedef struct ClientID {
 //communication manager holding all ZMQ sockets
 //single context shared across all sockets
 typedef struct CommunicationManager {
-    void* context;
     
+    //gamestate to enable/disable ships on connect/disconnect
+    GameState* game_state;
+
+    //flag for thread termination
+    int terminate_thread;
+    pthread_mutex_t mutex_terminate; //need a mutex because thread reads it and main thread writes it
+    
+    void* context;
+
     //====Client communication======
     //sockets
     void* client_rep_socket;        //REP: handles client connect/disconnect/moves
@@ -29,11 +37,10 @@ typedef struct CommunicationManager {
     int num_connected;               //current number of connected clients
 
     
-    //dashboard communication  
+    //======dashboard communication======
     void* dashboard_rep_socket;     //REP: handles dashboard requests
 
-    //gamestate to enable/disable ships on connect/disconnect
-    GameState* game_state;
+
 
 } CommunicationManager;
 

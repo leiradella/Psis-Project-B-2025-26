@@ -9,6 +9,7 @@
 #include <time.h>
 #include <stdint.h>
 #include <pthread.h>
+#include <errno.h>
 
 
 #define CLIENT_CONNECT CLIENT_MESSAGE_TYPE__CONNECT
@@ -36,6 +37,11 @@ CommunicationManager* CommunicationInit(GameState* state) {
         free(comm);
         return NULL;
     }
+
+    //thread flag
+    comm->terminate_thread = 0;
+    //thread flag mutex
+    comm->mutex_terminate = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
 
     //allocate memory for clients array
     comm->clients = (ClientID*)malloc(sizeof(ClientID) * max_clients);
@@ -65,6 +71,11 @@ CommunicationManager* CommunicationInit(GameState* state) {
     snprintf(pub_port_str, sizeof(pub_port_str), "tcp://*:%d", state->pub_port);
 
     comm->client_rep_socket = zmq_socket(comm->context, ZMQ_REP);
+    
+    //set receive timeout so thread can check terminate flag
+    int recv_timeout = 100; //100ms timeout
+    zmq_setsockopt(comm->client_rep_socket, ZMQ_RCVTIMEO, &recv_timeout, sizeof(recv_timeout));
+    
     zmq_bind(comm->client_rep_socket, rep_port_str);
 
     comm->client_pub_socket = zmq_socket(comm->context, ZMQ_PUB);
@@ -114,6 +125,27 @@ void CommunicationQuit(CommunicationManager** comm) {
     *comm = NULL;
 }
 
+void _SendClientResponse(CommunicationManager* comm, ServerMessageType msg_type, char* client_id) {
+    ServerMessage response = SERVER_MESSAGE__INIT;
+
+    if (client_id == NULL) {
+        response.id = strdup("");
+    } else {
+        response.id = strdup(client_id);
+    }
+
+    response.msg_type = msg_type;
+
+    //serialize protobuf message into zmq message and send
+    int msg_len = server_message__get_packed_size(&response);
+    uint8_t* msg_buf = (uint8_t*)malloc(msg_len);
+    server_message__pack(&response, msg_buf);
+    zmq_send(comm->client_rep_socket, msg_buf, msg_len, 0);
+
+    free(response.id);
+    free(msg_buf);
+}
+
 void _ProcessClientConnect(CommunicationManager* comm) {
     //process a connection request from a client
     //check for an empty slot
@@ -125,9 +157,6 @@ void _ProcessClientConnect(CommunicationManager* comm) {
         }
     }
 
-    //create a message (we always send a response)
-    ServerMessage response = SERVER_MESSAGE__INIT;
-   
     //message contents
     ServerMessageType msg_type;
     char id[33];
@@ -171,19 +200,8 @@ void _ProcessClientConnect(CommunicationManager* comm) {
         msg_type = SERVER_CONNECT_OK;
     }
 
-    //send message along with assigned connection ID
-    response.id = strdup(id);
-    response.msg_type = msg_type;
-
-    //serialize protobuf message into zmq message and send
-    int msg_len = server_message__get_packed_size(&response);
-    uint8_t* msg_buf = (uint8_t*)malloc(msg_len);
-    server_message__pack(&response, msg_buf);
-    zmq_send(comm->client_rep_socket, msg_buf, msg_len, 0);
-
-    free(response.id);
-    free(msg_buf);
-    return;
+    //send response with connection ID
+    _SendClientResponse(comm, msg_type, id);
 }
 
 void _ProcessClientDisconnect(CommunicationManager* comm, char* client_id) {
@@ -194,15 +212,21 @@ void _ProcessClientDisconnect(CommunicationManager* comm, char* client_id) {
     for (int i=0; i<comm->max_clients; i++) {
         char* id = comm->clients[i].connection_id;
 
+        if (id == NULL) {
+            continue;
+        }
+
         if (strcasecmp(id, client_id) == 0) {
             slot = i;
             break;
         }
     }
 
+    ServerMessageType msg_type;
+    
     if (slot == -1) {
-        //unknown ship_id, ignore
-        return;
+        //unknown ship_id, send error response (must always respond in REQ-REP)
+        msg_type = SERVER_CONNECT_ERROR;
     } else {
         //communication manager updates
         comm->num_connected--;
@@ -214,27 +238,12 @@ void _ProcessClientDisconnect(CommunicationManager* comm, char* client_id) {
         pthread_mutex_lock(&comm->game_state->mutex_enable);
         comm->game_state->ships[slot].enabled = 0;
         pthread_mutex_unlock(&comm->game_state->mutex_enable);
-
-        //need to send response
-        ServerMessageType msg_type = SERVER_CONNECT_OK;
-        char id[33];
-        id[0] = '\0';
-
-        //send message along with assigned connection ID
-        ServerMessage response = SERVER_MESSAGE__INIT;
-        response.id = strdup(id);
-        response.msg_type = msg_type;
-
-        //serialize protobuf message into zmq message and send
-        int msg_len = server_message__get_packed_size(&response);
-        uint8_t* msg_buf = (uint8_t*)malloc(msg_len);
-        server_message__pack(&response, msg_buf);
-        zmq_send(comm->client_rep_socket, msg_buf, msg_len, 0);
-
-        free(response.id);
-        free(msg_buf);
-        return;
+        
+        msg_type = SERVER_CONNECT_OK;
     }
+    
+    //send response
+    _SendClientResponse(comm, msg_type, "");
 }
 
 void _ProcessClientMove(CommunicationManager* comm, char* client_id, protobuf_c_boolean* keys) {
@@ -243,15 +252,21 @@ void _ProcessClientMove(CommunicationManager* comm, char* client_id, protobuf_c_
     int slot = -1;
     for (int i=0; i<comm->max_clients; i++) {
         char* id = comm->clients[i].connection_id;
+        if (id == NULL) {
+            continue;
+        }
+
         if (strcasecmp(id, client_id) == 0) {
             slot = i;
             break;
         }
     }
 
+    ServerMessageType msg_type;
+
     if (slot == -1) {
-        //unknown client_id, ignore
-        return;
+        //unknown client_id, respond with error
+        msg_type = SERVER_CONNECT_ERROR;
     } else {
 
         //decypher keys
@@ -272,22 +287,12 @@ void _ProcessClientMove(CommunicationManager* comm, char* client_id, protobuf_c_
 
         //unlock
         pthread_mutex_unlock(&comm->game_state->mutex_keys);
+
+        msg_type = SERVER_CONNECT_OK;
     }
 
     //send response
-    ServerMessage response = SERVER_MESSAGE__INIT;
-    response.id = strdup(client_id);
-    response.msg_type = SERVER_CONNECT_OK;
-
-    //serialize protobuf message into zmq message and send
-    int msg_len = server_message__get_packed_size(&response);
-    uint8_t* msg_buf = (uint8_t*)malloc(msg_len);
-    server_message__pack(&response, msg_buf);
-    zmq_send(comm->client_rep_socket, msg_buf, msg_len, 0);
-
-    free(response.id);
-    free(msg_buf);
-    return;
+    _SendClientResponse(comm, msg_type, client_id);
 }
 
 int ReceiveClientMessage(CommunicationManager* comm) {
@@ -303,11 +308,30 @@ int ReceiveClientMessage(CommunicationManager* comm) {
     
     //receive message
     int msg_len = zmq_recvmsg(comm->client_rep_socket, &msg, 0);
+    
+    //check if receive failed
+    if (msg_len < 0) {
+        zmq_msg_close(&msg);
+        if (errno == EAGAIN) {
+            //timeout - not an error, just no message
+            return 0;
+        }
+        printf("ERROR: zmq_recvmsg failed\n");
+        return -1;
+    }
 
     //unpack contents
     void* msg_data = zmq_msg_data(&msg);
     client_msg = client_message__unpack(NULL, msg_len, msg_data);
 
+    if(client_msg == NULL) {
+        //failed to unpack message - but we MUST send a response to maintain REQ-REP pattern
+        printf("ERROR: Failed to unpack client message\n");
+        _SendClientResponse(comm, SERVER_CONNECT_ERROR, "");
+        zmq_msg_close(&msg);
+        return -1;
+    }
+    
 
     int return_value = -1;
     //process message
@@ -337,7 +361,9 @@ int ReceiveClientMessage(CommunicationManager* comm) {
         _ProcessClientMove(comm, client_msg->id, keys);
         return_value = 1;
     } else {
-        //unknown message type
+        //unknown message type - but we MUST send a response to maintain REQ-REP pattern
+        printf("ERROR: Unknown message type\n");
+        _SendClientResponse(comm, SERVER_CONNECT_ERROR, "");
         return_value = -1;
     }
 

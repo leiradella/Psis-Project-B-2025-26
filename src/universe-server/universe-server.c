@@ -18,14 +18,22 @@ void *ClientCommunicationThread(void* arg) {
         pthread_exit(NULL);
     }
 
-    while (1) {
+    int stop = comm->terminate_thread;
+
+    while (!stop) {
         //check for client messages
         int result = ReceiveClientMessage(comm);
         if (result == -1) {
             //error occurred
             printf("Error receiving client message.\n");
         }
+
+        //we need to do this because main thread accesses terminate_thread
+        pthread_mutex_lock(&comm->mutex_terminate);
+        stop = comm->terminate_thread;
+        pthread_mutex_unlock(&comm->mutex_terminate);
     } 
+    pthread_exit(NULL);
 }
 
 int main(int argc, char* argv[]) {
@@ -168,11 +176,14 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    //free allocated universe state memory
-    DestroyUniverse(&game_state);
-
-    //cleanup comms
-    CommunicationQuit(&comm);
+    //signal communication thread to terminate
+    printf("Signaling communication thread to terminate...\n");
+    pthread_mutex_lock(&comm->mutex_terminate);
+    comm->terminate_thread = 1;
+    pthread_mutex_unlock(&comm->mutex_terminate);
+    //wait for communication thread to finish
+    pthread_join(comm_thread, NULL);
+    printf("Communication thread terminated.\n");
 
     //destroy SDL variables and quit SDL
     TTF_CloseFont(game_state->font);
@@ -180,6 +191,15 @@ int main(int argc, char* argv[]) {
     SDL_DestroyWindow(window);
     TTF_Quit();
     SDL_Quit();
+    printf("SDL cleaned up and quit.\n");
+
+    //free allocated universe state memory
+    DestroyUniverse(&game_state);
+    printf("Universe destroyed.\n");
+
+    //cleanup comms
+    CommunicationQuit(&comm);
+    printf("Communication manager cleaned up.\n");
 
     printf("Universe Simulator exited successfully.\n");
     return 0;
