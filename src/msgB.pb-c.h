@@ -21,6 +21,7 @@ typedef struct ShipStruct ShipStruct;
 typedef struct TrashStruct TrashStruct;
 typedef struct PlanetStruct PlanetStruct;
 typedef struct UniverseStateMessage UniverseStateMessage;
+typedef struct DashboardMessage DashboardMessage;
 
 
 /* --- enums --- */
@@ -163,6 +164,36 @@ struct  UniverseStateMessage
     , 0,NULL, 0,NULL, 0,NULL, 0, 0, 0, 0, 0, 0 }
 
 
+/*
+ *server message to dashboard 
+ */
+struct  DashboardMessage
+{
+  ProtobufCMessage base;
+  /*
+   *vector with recycled trash counts per planet
+   */
+  size_t n_recycled_trash;
+  int32_t *recycled_trash;
+  /*
+   *vector with cargo counts per ship
+   */
+  size_t n_ship_cargo;
+  int32_t *ship_cargo;
+  /*
+   *number of roaming trash pieces in universe
+   */
+  int32_t roaming_trash;
+  /*
+   *max trash capacity of universe
+   */
+  int32_t max_trash_capacity;
+};
+#define DASHBOARD_MESSAGE__INIT \
+ { PROTOBUF_C_MESSAGE_INIT (&dashboard_message__descriptor) \
+    , 0,NULL, 0,NULL, 0, 0 }
+
+
 /* ClientMessage methods */
 void   client_message__init
                      (ClientMessage         *message);
@@ -277,6 +308,25 @@ UniverseStateMessage *
 void   universe_state_message__free_unpacked
                      (UniverseStateMessage *message,
                       ProtobufCAllocator *allocator);
+/* DashboardMessage methods */
+void   dashboard_message__init
+                     (DashboardMessage         *message);
+size_t dashboard_message__get_packed_size
+                     (const DashboardMessage   *message);
+size_t dashboard_message__pack
+                     (const DashboardMessage   *message,
+                      uint8_t             *out);
+size_t dashboard_message__pack_to_buffer
+                     (const DashboardMessage   *message,
+                      ProtobufCBuffer     *buffer);
+DashboardMessage *
+       dashboard_message__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data);
+void   dashboard_message__free_unpacked
+                     (DashboardMessage *message,
+                      ProtobufCAllocator *allocator);
 /* --- per-message closures --- */
 
 typedef void (*ClientMessage_Closure)
@@ -297,6 +347,9 @@ typedef void (*PlanetStruct_Closure)
 typedef void (*UniverseStateMessage_Closure)
                  (const UniverseStateMessage *message,
                   void *closure_data);
+typedef void (*DashboardMessage_Closure)
+                 (const DashboardMessage *message,
+                  void *closure_data);
 
 /* --- services --- */
 
@@ -311,6 +364,7 @@ extern const ProtobufCMessageDescriptor ship_struct__descriptor;
 extern const ProtobufCMessageDescriptor trash_struct__descriptor;
 extern const ProtobufCMessageDescriptor planet_struct__descriptor;
 extern const ProtobufCMessageDescriptor universe_state_message__descriptor;
+extern const ProtobufCMessageDescriptor dashboard_message__descriptor;
 
 PROTOBUF_C__END_DECLS
 

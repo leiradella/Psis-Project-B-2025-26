@@ -64,4 +64,7 @@ void CheckClientTimeouts(CommunicationManager* comm);
 //=== Universe State Publishing ===
 void SendUniverseState(CommunicationManager* comm);
 
+//=== Dashboard Communication ===
+void SendDashboardUpdate(CommunicationManager* comm);
+
 #endif //COMMUNICATION_H

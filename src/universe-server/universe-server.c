@@ -12,7 +12,7 @@
 #include "communication.h"
 
 //thread for client connections/moves
-void *ClientCommunicationThread(void* arg) {
+void* ClientCommunicationThread(void* arg) {
     CommunicationManager* comm = (CommunicationManager*)arg;
     if (comm == NULL) {
         printf("Communication thread received NULL argument (should have received CommunicationManager*). Exiting thread...\n");
@@ -41,7 +41,7 @@ void *ClientCommunicationThread(void* arg) {
 }
 
 //thread for publishing universe state to clients
-void *UniversePublishThread(void* arg) {
+void* UniversePublishThread(void* arg) {
     CommunicationManager* comm = (CommunicationManager*)arg;
     if (comm == NULL) {
         printf("Communication thread received NULL argument (should have received CommunicationManager*). Exiting thread...\n");
@@ -60,6 +60,36 @@ void *UniversePublishThread(void* arg) {
         if (current_time - last_publish_time >= (Uint32)publish_interval_ms) {
             //time to publish
             SendUniverseState(comm);
+            last_publish_time = current_time;
+        }
+
+        //we need to do this because main thread accesses terminate_thread
+        pthread_mutex_lock(&comm->mutex_terminate);
+        stop = comm->terminate_thread;
+        pthread_mutex_unlock(&comm->mutex_terminate);
+    }
+    pthread_exit(NULL);
+}
+
+void* DashboardPublishThread(void* arg) {
+    CommunicationManager* comm = (CommunicationManager*)arg;
+    if (comm == NULL) {
+        printf("Dashboard communication thread received NULL argument (should have received CommunicationManager*). Exiting thread...\n");
+        pthread_exit(NULL);
+    }
+
+    //send dashboard updates at fixed intervals
+    const int publish_interval_ms = 1000; //1 second
+    Uint32 last_publish_time = SDL_GetTicks();
+
+    int stop = comm->terminate_thread;
+
+    while (!stop) {
+
+        Uint32 current_time = SDL_GetTicks();
+        if (current_time - last_publish_time >= (Uint32)publish_interval_ms) {
+            //time to publish
+            SendDashboardUpdate(comm);
             last_publish_time = current_time;
         }
 
@@ -110,6 +140,7 @@ int main(int argc, char* argv[]) {
         DestroyUniverse(&game_state);
         return 1;
     }
+    printf("Client communication thread depolyed.\n");
 
     //start a thread to publish universe state to clients
     pthread_t publish_thread;
@@ -124,7 +155,23 @@ int main(int argc, char* argv[]) {
         DestroyUniverse(&game_state);
         return 1;
     }
+    printf("Universe publish thread depolyed.\n");
 
+    //start a thread to publish dashboard updates
+    pthread_t dashboard_thread;
+    if (pthread_create(&dashboard_thread, NULL, DashboardPublishThread, (void*)comm) != 0) {
+        printf("Failed to create dashboard publish thread. Exiting...\n");
+        //signal communication thread to terminate
+        pthread_mutex_lock(&comm->mutex_terminate);
+        comm->terminate_thread = 1;
+        pthread_mutex_unlock(&comm->mutex_terminate);
+        pthread_join(comm_thread, NULL);
+        pthread_join(publish_thread, NULL);
+        CommunicationQuit(&comm);
+        DestroyUniverse(&game_state);
+        return 1;
+    }
+    printf("Dashboard publish thread depolyed.\n");
 
     //Initalize SDL
     if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {

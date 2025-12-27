@@ -96,3 +96,14 @@ message UniverseStateMessage {
     required int32 bg_b = 8;
     required int32 bg_a = 9;
 }
+
+//============Dashboard messages===================
+
+//server message to dashboard 
+message DashboardMessage {
+    repeated int32 recycled_trash = 1; //vector with recycled trash counts per planet
+    repeated int32 ship_cargo = 2; //vector with cargo counts per ship
+
+    required int32 roaming_trash = 3; //number of roaming trash pieces in universe
+    required int32 max_trash_capacity = 4; //max trash capacity of universe
+}

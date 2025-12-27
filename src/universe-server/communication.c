@@ -70,11 +70,15 @@ CommunicationManager* CommunicationInit(GameState* state, GameStateSnapshot* sna
 
     //create a string for the ports
     char rep_port_str[16];
+    char dashboard_port_str[16];
     char pub_port_str[16];
 
     snprintf(rep_port_str, sizeof(rep_port_str), "tcp://*:%d", state->rep_port);
+    snprintf(dashboard_port_str, sizeof(dashboard_port_str), "tcp://*:%d", state->dashboard_port);
     snprintf(pub_port_str, sizeof(pub_port_str), "tcp://*:%d", state->pub_port);
 
+
+    //====CLIENT REP=====
     comm->client_rep_socket = zmq_socket(comm->context, ZMQ_REP);
     
     //set receive timeout so thread can check terminate flag
@@ -83,11 +87,13 @@ CommunicationManager* CommunicationInit(GameState* state, GameStateSnapshot* sna
     
     zmq_bind(comm->client_rep_socket, rep_port_str);
 
+    //====CLIENT PUB=====
     comm->client_pub_socket = zmq_socket(comm->context, ZMQ_PUB);
     zmq_bind(comm->client_pub_socket, pub_port_str);
 
-    //initialize dashboard socket
-    comm->dashboard_rep_socket = zmq_socket(comm->context, ZMQ_REP);
+    //====DASHBOARD PUB=====
+    comm->dashboard_rep_socket = zmq_socket(comm->context, ZMQ_PUB);
+    zmq_bind(comm->dashboard_rep_socket, dashboard_port_str);
     
     if (comm->client_rep_socket == NULL || comm->client_pub_socket == NULL || comm->dashboard_rep_socket == NULL) {
         free(comm->clients);
@@ -500,4 +506,74 @@ void SendUniverseState(CommunicationManager* comm) {
     }
     free(universe_msg.ships);
     free(msg_buf);
+}
+
+//===========SERVER DASHBOARD PUBLISH=========================
+void SendDashboardUpdate(CommunicationManager* comm) {
+    //dashboard wants 4 things:
+    //1. recycled trash per planet
+    //2. trash cargo per ship
+    //3. roaming trash amount
+    //4. max trash capacity in universe
+    //we can get all these from the gamestate snapshot
+
+    DashboardMessage dashboard_msg = DASHBOARD_MESSAGE__INIT;
+    
+    //create variables
+    int recycled_trash[comm->snapshot->n_planets];
+    int ship_cargo[comm->snapshot->n_ships];
+    int roaming_trash;
+    int max_trash_capacity;
+
+    //lock snapshot
+    pthread_mutex_lock(&comm->game_state->mutex_snapshot);
+
+    //get what we need from snapshot
+
+    //recycled trash
+    for (size_t i = 0; i < (size_t)comm->snapshot->n_planets; i++) {
+        recycled_trash[i] = comm->snapshot->planets[i].trash_amount;
+    }
+
+    //trash cargo
+    for (size_t i = 0; i < (size_t)comm->snapshot->n_ships; i++) {
+        ship_cargo[i] = comm->snapshot->ships[i].trash_amount;
+    }
+    
+    //roaming trash
+    roaming_trash = comm->snapshot->n_trashes;
+
+    //max trash capacity
+    max_trash_capacity = comm->snapshot->max_trash;
+
+    //unlock snapshot
+    pthread_mutex_unlock(&comm->game_state->mutex_snapshot);
+
+    //fill in dashboard message
+    dashboard_msg.n_recycled_trash = comm->snapshot->n_planets;
+    dashboard_msg.recycled_trash = malloc(sizeof(int32_t) * dashboard_msg.n_recycled_trash);
+    for (size_t i = 0; i < dashboard_msg.n_recycled_trash; i++) {
+        dashboard_msg.recycled_trash[i] = recycled_trash[i];
+    }
+
+    dashboard_msg.n_ship_cargo = comm->snapshot->n_ships;
+    dashboard_msg.ship_cargo = malloc(sizeof(int32_t) * dashboard_msg.n_ship_cargo);
+    for (size_t i = 0; i < dashboard_msg.n_ship_cargo; i++) {
+        dashboard_msg.ship_cargo[i] = ship_cargo[i];    
+    }
+
+    dashboard_msg.roaming_trash = roaming_trash;
+    dashboard_msg.max_trash_capacity = max_trash_capacity;
+
+    //send dashboard message
+    size_t msg_len = dashboard_message__get_packed_size(&dashboard_msg);
+    uint8_t* msg_buf = malloc(msg_len);
+    dashboard_message__pack(&dashboard_msg, msg_buf);
+    zmq_send(comm->dashboard_rep_socket, msg_buf, msg_len, 0);
+    //cleanup
+    free(dashboard_msg.recycled_trash);
+    free(dashboard_msg.ship_cargo);
+    free(msg_buf);
+    
+    return;
 }

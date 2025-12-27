@@ -39,6 +39,9 @@ typedef struct UniverseConfig {
     //client requests
     int rep_port;
 
+    //dashboard port
+    int dashboard_port;
+
     //server broadcast publishing for the gamestate
     int pub_port;
 } UniverseConfig;
@@ -128,6 +131,7 @@ typedef struct GameState {
 
     //networking ports
     int rep_port;
+    int dashboard_port;
     int pub_port;
 
     //mutex for thread safety
@@ -149,6 +153,7 @@ typedef struct GameStateSnapshot {
     int n_ships;
     Trash* trashes;
     int n_trashes;
+    int max_trash;
     Planet* planets;
     int n_planets;
 

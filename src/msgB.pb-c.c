@@ -277,6 +277,51 @@ void   universe_state_message__free_unpacked
   assert(message->base.descriptor == &universe_state_message__descriptor);
   protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
 }
+void   dashboard_message__init
+                     (DashboardMessage         *message)
+{
+  static const DashboardMessage init_value = DASHBOARD_MESSAGE__INIT;
+  *message = init_value;
+}
+size_t dashboard_message__get_packed_size
+                     (const DashboardMessage *message)
+{
+  assert(message->base.descriptor == &dashboard_message__descriptor);
+  return protobuf_c_message_get_packed_size ((const ProtobufCMessage*)(message));
+}
+size_t dashboard_message__pack
+                     (const DashboardMessage *message,
+                      uint8_t       *out)
+{
+  assert(message->base.descriptor == &dashboard_message__descriptor);
+  return protobuf_c_message_pack ((const ProtobufCMessage*)message, out);
+}
+size_t dashboard_message__pack_to_buffer
+                     (const DashboardMessage *message,
+                      ProtobufCBuffer *buffer)
+{
+  assert(message->base.descriptor == &dashboard_message__descriptor);
+  return protobuf_c_message_pack_to_buffer ((const ProtobufCMessage*)message, buffer);
+}
+DashboardMessage *
+       dashboard_message__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data)
+{
+  return (DashboardMessage *)
+     protobuf_c_message_unpack (&dashboard_message__descriptor,
+                                allocator, len, data);
+}
+void   dashboard_message__free_unpacked
+                     (DashboardMessage *message,
+                      ProtobufCAllocator *allocator)
+{
+  if(!message)
+    return;
+  assert(message->base.descriptor == &dashboard_message__descriptor);
+  protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
+}
 static const ProtobufCFieldDescriptor client_message__field_descriptors[10] =
 {
   {
@@ -828,6 +873,83 @@ const ProtobufCMessageDescriptor universe_state_message__descriptor =
   universe_state_message__field_indices_by_name,
   1,  universe_state_message__number_ranges,
   (ProtobufCMessageInit) universe_state_message__init,
+  NULL,NULL,NULL    /* reserved[123] */
+};
+static const ProtobufCFieldDescriptor dashboard_message__field_descriptors[4] =
+{
+  {
+    "recycled_trash",
+    1,
+    PROTOBUF_C_LABEL_REPEATED,
+    PROTOBUF_C_TYPE_INT32,
+    offsetof(DashboardMessage, n_recycled_trash),
+    offsetof(DashboardMessage, recycled_trash),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "ship_cargo",
+    2,
+    PROTOBUF_C_LABEL_REPEATED,
+    PROTOBUF_C_TYPE_INT32,
+    offsetof(DashboardMessage, n_ship_cargo),
+    offsetof(DashboardMessage, ship_cargo),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "roaming_trash",
+    3,
+    PROTOBUF_C_LABEL_REQUIRED,
+    PROTOBUF_C_TYPE_INT32,
+    0,   /* quantifier_offset */
+    offsetof(DashboardMessage, roaming_trash),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "max_trash_capacity",
+    4,
+    PROTOBUF_C_LABEL_REQUIRED,
+    PROTOBUF_C_TYPE_INT32,
+    0,   /* quantifier_offset */
+    offsetof(DashboardMessage, max_trash_capacity),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+};
+static const unsigned dashboard_message__field_indices_by_name[] = {
+  3,   /* field[3] = max_trash_capacity */
+  0,   /* field[0] = recycled_trash */
+  2,   /* field[2] = roaming_trash */
+  1,   /* field[1] = ship_cargo */
+};
+static const ProtobufCIntRange dashboard_message__number_ranges[1 + 1] =
+{
+  { 1, 0 },
+  { 0, 4 }
+};
+const ProtobufCMessageDescriptor dashboard_message__descriptor =
+{
+  PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
+  "DashboardMessage",
+  "DashboardMessage",
+  "DashboardMessage",
+  "",
+  sizeof(DashboardMessage),
+  4,
+  dashboard_message__field_descriptors,
+  dashboard_message__field_indices_by_name,
+  1,  dashboard_message__number_ranges,
+  (ProtobufCMessageInit) dashboard_message__init,
   NULL,NULL,NULL    /* reserved[123] */
 };
 static const ProtobufCEnumValue client_message_type__enum_values_by_number[3] =

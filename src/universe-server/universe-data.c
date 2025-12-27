@@ -72,6 +72,7 @@ int _ReadUniverseData(config_t *cfg, UniverseConfig *universe_config) {
     status += _LookupUniverseInt(cfg, &universe_config->trash_generation_rate_s, "universe.trash_generation_rate_s");
     status += _LookupUniverseInt(cfg, &universe_config->planet_change_rate_s, "universe.planet_change_rate_s");
     status += _LookupUniverseInt(cfg, &universe_config->rep_port, "universe.rep_port");
+    status += _LookupUniverseInt(cfg, &universe_config->dashboard_port, "universe.dashboard_port");
     status += _LookupUniverseInt(cfg, &universe_config->pub_port, "universe.pub_port");
     return status;
 }
@@ -310,6 +311,7 @@ GameState *CreateInitialUniverseState(const char* config_name, int seed) {
     game_state->is_game_over = 0;
 
     game_state->rep_port = universe_config.rep_port;
+    game_state->dashboard_port = universe_config.dashboard_port;
     game_state->pub_port = universe_config.pub_port;
 
     game_state->mutex_enable = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
@@ -349,6 +351,7 @@ GameStateSnapshot* CreateUniverseSnapshot(GameState* game_state) {
     }
 
     snapshot->n_trashes = game_state->n_trashes;
+    snapshot->max_trash = game_state->max_trash;
     snapshot->trashes = malloc(sizeof(Trash) * game_state->max_trash);
     if (snapshot->trashes == NULL) {
         free(snapshot->ships);
