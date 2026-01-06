@@ -1,8 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <zmq.h>
-#include "../msg.pb-c.h"
 #include "graceful-exit.h"
 
 #include "Communication.h"
@@ -24,22 +22,21 @@ void *safe_zmq_socket(void * zmq_ctx, int type_, gful_lifo **graceful_lifo){
     void *pReceive = zmq_socket(zmq_ctx, type_);
     if(!pReceive){
         printf("error initializing ZMQ_Socket: %s\n", zmq_strerror(errno));
-        closeContexts(*graceful_lifo);
-        exit(1);
+        return NULL;
     }
 
     createContextDataforClosing(zmq_close, pReceive, graceful_lifo);
     return pReceive;
 }
-
-void safe_zmq_bind(void *s_, const char *addr_, gful_lifo **graceful_lifo){
+/*
+int safe_zmq_bind(void *s_, const char *addr_){
 
     int status = zmq_bind(s_, addr_);
     if(status){
         printf("Error initializing ZMQ_Bind: %s\n", zmq_strerror(errno));
-        closeContexts(*graceful_lifo);
-        exit(1);
+        return -1;
     }
+    return 0;
 }
 
 void safe_zmq_connect(void *s_, const char *addr_, gful_lifo **graceful_lifo){
@@ -74,13 +71,12 @@ int safe_zmq_recv(  void *s_, void *buf_, size_t len_, int flags_,
     }
     return status;
 }
-
-int safe_zmq_recvmsg(void *s_, zmq_msg_t *msg_, int flags_, gful_lifo **graceful_lifo){
+*/
+int safe_zmq_recvmsg(void *s_, zmq_msg_t *msg_, int flags_){
     int msg_len = zmq_recvmsg(s_, msg_ , flags_);
     if(msg_len == -1){
         printf("Error getting ZMQ message: %s\n", zmq_strerror(errno));
-        closeContexts(*graceful_lifo);
-        exit(1);
+        return -1;
     }
     return msg_len;
 }
@@ -318,3 +314,20 @@ uint8_t handleClientMove(Player *firstPlayer, uint8_t msgSenderID, GameState *ga
         return FAIL;
     }       
 }
+
+void thread_newConnections(void *zmq_ctx, char *address, gful_lifo **graceful_lifo){
+    void *zmq_socket = safe_zmq_socket(zmq_ctx, ZMQ_REP, graceful_lifo);
+
+    int bindOut = zmq_bind(zmq_socket, "tcp://*:5556");
+    if(bindOut){
+        printf("Error initializing ZMQ_Bind: %s\n", zmq_strerror(errno));
+        return -1;
+    }
+    
+    zmq_msg_t message;
+    while(!end){
+        safe_zmq_recvmsg(zmq_socket, message, 0);
+        InitializeShip(gamestate,);
+    }
+}
+

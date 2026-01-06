@@ -1,5 +1,5 @@
 #include "display.h"
-#include "Communication.h"
+#include "new-Communication.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -99,7 +99,7 @@ void _DrawShips(SDL_Renderer* renderer, GameState* game_state) {
 
         int status = SDL_RenderCopyEx(renderer, game_state->ships[i].imageTexture, NULL, &dst, angle, &point, SDL_FLIP_NONE);
 
-        //if(status == -1) printf("Status: %s\n", SDL_GetError());
+        if(status == -1) printf("Status: %s\n", SDL_GetError());
 
         //draw ship name at top-right of ship
         //name is a single char + the amount of trash inside the ship
@@ -189,7 +189,7 @@ void Draw(SDL_Renderer* renderer, GameState* game_state) {
     SDL_RenderPresent(renderer);
 }
 
-int checkQuit(){
+int checkQuit(void ){
     SDL_Event event;
 
     while (SDL_PollEvent(&event) != 0)
@@ -198,7 +198,7 @@ int checkQuit(){
     return 0;
     
 }
-
+/*
 uint8_t checkKeyboard(int close){
     uint8_t msg;
     const Uint8 *currentKeyStates = SDL_GetKeyboardState(NULL);
@@ -217,7 +217,7 @@ uint8_t checkKeyboard(int close){
     }
     return msg;
 }
-
+*/
 SDL_Texture *getTexture(SDL_Renderer *renderer, const char *file,  gful_lifo **graceful_lifo){
     SDL_Surface *imageSurface= safe_IMG_Load(file, graceful_lifo);
     SDL_Texture *imageTexture = safe_SDL_CreateTextureFromSurface(renderer, imageSurface, graceful_lifo);
@@ -234,7 +234,7 @@ SDL_Texture *getTexture(SDL_Renderer *renderer, const char *file,  gful_lifo **g
             closeContexts(*graceful_lifo);
             exit(1);
         }
-        createContextDataforClosing(SDL_DestroyWindow, pWin, graceful_lifo);
+        createContextDataforClosing((genericfunction *)SDL_DestroyWindow, pWin, graceful_lifo);
         return pWin;
     }
 
@@ -244,7 +244,7 @@ SDL_Texture *getTexture(SDL_Renderer *renderer, const char *file,  gful_lifo **g
             closeContexts(*gracefull_lifo);
             exit(1);
         }
-        createContextDataforClosing(SDL_Quit, NULL, gracefull_lifo);
+        createContextDataforClosing((genericfunction *)SDL_Quit, NULL, gracefull_lifo);
     }
 
     void safe_TTF_Init(gful_lifo **graceful_lifo){
@@ -259,14 +259,14 @@ SDL_Texture *getTexture(SDL_Renderer *renderer, const char *file,  gful_lifo **g
                                             int index, Uint32 flags,
                                             gful_lifo **graceful_lifo){
 
-        SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+        SDL_Renderer *renderer = SDL_CreateRenderer(window, index, flags);
                                     
         if (renderer == NULL) {
             printf("SDL_CreateRenderer Error: %s\n", SDL_GetError());
             closeContexts(*graceful_lifo);
             exit(1);
         }
-        createContextDataforClosing(SDL_DestroyRenderer, renderer, graceful_lifo);
+        createContextDataforClosing((genericfunction *)SDL_DestroyRenderer, renderer, graceful_lifo);
         return renderer;
     }
 
@@ -278,7 +278,7 @@ SDL_Texture *getTexture(SDL_Renderer *renderer, const char *file,  gful_lifo **g
             exit(1);
         }
 
-        createContextDataforClosing(SDL_FreeSurface, imageSurface, graceful_lifo);
+        createContextDataforClosing((genericfunction *)SDL_FreeSurface, imageSurface, graceful_lifo);
         return imageSurface;
     }
 

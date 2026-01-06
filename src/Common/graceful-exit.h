@@ -3,8 +3,10 @@
 
 #define GFUL_INIT NULL
 
+typedef void (genericfunction)(void);
+
 typedef struct contextDataforClosing{
-    void (*pFunction)(void *);
+    genericfunction *function;
     void *pArguments;
     struct contextDataforClosing *pPreviousStruct;
 }gful_lifo;
@@ -15,7 +17,7 @@ void closeContexts(struct contextDataforClosing *);
 
 void closeContextsRecusive(struct contextDataforClosing *);
 
-void createContextDataforClosing(   void *, void *, 
+void createContextDataforClosing(   genericfunction *, void *, 
                                     struct contextDataforClosing **);
 
 #endif //GRACEFULEXIT_H

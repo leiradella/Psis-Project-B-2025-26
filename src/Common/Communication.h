@@ -13,8 +13,6 @@
 #define SUCCESS     1       
 #define FAIL        0 
 
-#define
-
 #define MYLEFT  1
 #define MYUP    2
 #define MYDOWN  4
@@ -40,6 +38,14 @@
 //handling and with graceful exit data.
 void *safe_zmq_ctx_new(gful_lifo **graceful_lifo);
 
+/*
+This function was updated:
+The prior implementation of the function closed the process
+if there was error in receiving the message 
+This behaviour was undesirable and was switched to return -1
+to be handled as the caller sees fit
+*/
+
 void *safe_zmq_socket(void *, int type_, gful_lifo **graceful_lifo);
 
 void safe_zmq_bind(void *s_, const char *addr_, gful_lifo **graceful_lifo);
@@ -50,7 +56,15 @@ int safe_zmq_send(void *s_, const void *buf_, size_t len_, int flags_, gful_lifo
 
 int safe_zmq_recv(void *s_, void *buf_, size_t len_, int flags_, gful_lifo **graceful_lifo);
 
-int safe_zmq_recvmsg(void *s_, zmq_msg_t *msg_, int flags_, gful_lifo **graceful_exit);
+/*
+This function was updated:
+The prior implementation of the function closed the process
+if there was error in receiving the message 
+This behaviour was undesirable and was switched to return -1
+to be handled as the caller sees fit
+*/
+
+int safe_zmq_recvmsg(void *s_, zmq_msg_t *msg_, int flags_);
 
 //Client
 uint8_t join_request(void *s_, Client sendMessage, gful_lifo **gracefull_lifo);
@@ -73,5 +87,9 @@ uint8_t handleClientExit(Player **firstPlayer, uint8_t msgSenderID, int *nNewPla
 uint8_t handleClientStill(Player *firstPlayer, uint8_t msgSenderID, GameState *game_state, int *nNewPlayers);
 
 uint8_t handleClientMove(Player *firstPlayer, uint8_t msgSenderID, GameState *game_state, int *nNewPlayers, uint8_t msg);
+
+void thread_newConnections(void *zmq_context, char *address, gful_lifo *graceful_lifo);
+
+void thread_RecvMovement();
 
 #endif // MYLIB_H

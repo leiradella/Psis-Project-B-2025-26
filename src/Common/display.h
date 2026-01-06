@@ -11,7 +11,7 @@
 void Draw(SDL_Renderer* renderer, GameState* game_state);
 
 //Poll all events to check for SDL_QUIT
-int checkQuit();
+int checkQuit(void );
 
 //Check KeyboardState to see if a movement key was pressed
 uint8_t checkKeyboard(int close);

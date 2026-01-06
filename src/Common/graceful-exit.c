@@ -8,7 +8,15 @@ void closeSingleContext(gful_lifo **graceful_lifo){
         printf("Invalid context.\n");
         return;
     }
-    ((*graceful_lifo)->pFunction)((void*)(*graceful_lifo)->pArguments);
+    gful_lifo LastPosition = **graceful_lifo;
+    if(LastPosition.pArguments == NULL)
+    {
+        ((void (*)(void)) LastPosition.function)();
+    }
+    else
+    {
+        ((void (*)(void *)) LastPosition.function)(LastPosition.pArguments);
+    }
     gful_lifo *temp = *graceful_lifo;
     *graceful_lifo = (*graceful_lifo)->pPreviousStruct;
     free(temp);
@@ -22,19 +30,26 @@ void closeContexts(struct contextDataforClosing *Data){
     closeContextsRecusive(Data);
 }
 
-void closeContextsRecusive(struct contextDataforClosing *Data){
+void closeContextsRecursive(struct contextDataforClosing *Data){
     printf("Executing close contexts\n");
-    (Data->pFunction)((void*)Data->pArguments);
-    printf("Completed close contexts\n");
-    printf("%p\n", Data->pPreviousStruct);
+    gful_lifo LastPosition = *Data;
+    if(LastPosition.pArguments == NULL)
+    {
+        ((void (*)(void)) LastPosition.function)();
+    }
+    else
+    {
+        ((void (*)(void *)) LastPosition.function)(LastPosition.pArguments);
+    }    printf("Completed close contexts\n");
+    printf("%p\n", (void *)Data->pPreviousStruct);
     if((Data->pPreviousStruct)){
         printf("Recurisng\n");
-        closeContexts(Data->pPreviousStruct);
+        closeContextsRecursive(Data->pPreviousStruct);
     }
     free(Data);
 }
 
-void createContextDataforClosing(   void *pInFunction, void *pInArguments, 
+void createContextDataforClosing(   genericfunction *pInFunction, void *pInArguments, 
                                     struct contextDataforClosing **pInPreviousStruct){
 
     struct contextDataforClosing *newStruct = malloc(sizeof(struct contextDataforClosing));
@@ -45,7 +60,7 @@ void createContextDataforClosing(   void *pInFunction, void *pInArguments,
         exit(1);
     }
 
-    newStruct->pFunction = pInFunction;
+    newStruct->function = pInFunction;
     newStruct->pArguments = pInArguments;
     newStruct->pPreviousStruct = *pInPreviousStruct;
     *pInPreviousStruct = newStruct;

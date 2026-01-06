@@ -4,7 +4,7 @@
 #include <zmq.h>
 
 #include "Communication.h"
-#include "../msgB.pb-c.h"
+#include "msgB.pb-c.h"
 #include "display.h"
 
 int main(int argc, char *argv[])

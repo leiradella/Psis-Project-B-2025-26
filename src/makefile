@@ -1,28 +1,43 @@
 CC 				:= gcc
 CFLAGS 			:= -g -Wall -Wextra -Werror -pedantic
 CONFIGFLAGS 	:= -lconfig
-CLIENTDIR 		:= ./trash-ship-client
-COMMONDIR		:= ./Common
+SDLFLAGS		:= -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_gfx
+ZMQFLAGS		:= -lzmq
+PROTOFLAGS		:= -lprotobuf-c
+MATHFLAGS		:= -lm
+CLIENTDIR 		:= ./trash-ship-client/
+COMMONDIR		:= ./Common/
 CLIENTDIRSRC 	:= new-universe-client.c 
-CLIENTCOMMONSRC := temp
+CLIENTCOMMONSRC := graceful-exit.c display.c new-Communication.c msgB.pb-c.c universe-data.c
 PROTOSRC		:= msgB.proto
 PROTOOUT		:= msgB.pb-c.h msgB.pb-c.c
 
-all: new-universe-client msgB.pb-c
+all: new-universe-client test-server proto
 
-new-universe-client: $(addprefix $(CLIENTDIR)/, $(CLIENTDIRSRC))
-	$(CC) $(cflags) $(addprefix $(CLIENTDIR)/, $(CLIENTDIRSRC)) -o $(CLIENTDIR)/$@ \
-		$(CONFIGFLAGS)
+new-universe-client: $(addprefix $(CLIENTDIR), $(CLIENTDIRSRC))
+	$(CC) $(CFLAGS)	-o $(CLIENTDIR)$@	\
+	$(addprefix $(CLIENTDIR), $(CLIENTDIRSRC))	\
+	$(addprefix $(COMMONDIR), $(CLIENTCOMMONSRC))	\
+	$(CONFIGFLAGS)	$(SDLFLAGS)	$(ZMQFLAGS) $(PROTOFLAGS) $(MATHFLAGS)	
 
-msgB.pb-c: $(Common)/msgB.proto
-	protoc --c_out=. $(Common)/msgB.proto
+test-server:	test-server.c
+	$(CC) $(FLAGS) -o $@	\
+	$@.c 
 
-clean: clean_msgB.pb-c
+.PHONY: proto 
+proto: $(addprefix $(COMMONDIR), $(PROTOOUT)) 
+$(addprefix $(COMMONDIR), $(PROTOOUT)): $(COMMONDIR)msgB.proto
+	protoc --c_out=. $<
+
+clean: clean_test-server clean_new-universe-client clean_proto 
+
+clean_test-server:
+	rm test-server
 
 clean_new-universe-client: 
-	rm $(CLIENTDIR)/new-universe-client
+	rm $(CLIENTDIR)new-universe-client
 
-clean_msgB.pb-c: 
-	rm $(addprefix $(COMMONDIR)/, $(PROTOOUT))
+clean_proto: 
+	rm $(addprefix $(COMMONDIR), $(PROTOOUT))
 
 
