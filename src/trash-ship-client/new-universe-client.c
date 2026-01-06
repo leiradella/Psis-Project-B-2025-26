@@ -9,7 +9,8 @@
 
 typedef struct config{
     int universeSize;
-    char *serverAddr;
+    int serverAddr;
+    int serverBroadcast;
 }config;
 
 Uint32 timer_callback(Uint32 interval, void *param){
@@ -55,12 +56,17 @@ int main(int argc, char *argv[]){
 
     printf("universe.size: %d\n", myConfig.universeSize);
     
-    config_lookup_string(   &cfg,
+    config_lookup_int(   &cfg,
                             "comunication.serverAddress",
                             (const char **)&myConfig.serverAddr);
 
-    
+    config_lookup_int(   &cfg,
+                        "comunication.serverBroadcast",
+                        (const char **)&myConfig.serverBroadcast);
+
+                        
     printf("comunication.serverAddress: %s\n", myConfig.serverAddr);
+    printf("comunication.serverBroadcast: %s\n", myConfig.serverAddr);
 
 //Initialize ZMQ
     void *zmqCtx = safe_zmq_ctx_new(&lastPosition);
