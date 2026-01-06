@@ -67,6 +67,13 @@ void* UniversePublishThread(void* arg) {
         pthread_mutex_lock(&comm->mutex_terminate);
         stop = comm->terminate_thread;
         pthread_mutex_unlock(&comm->mutex_terminate);
+
+
+        //sleep for the remaining time
+        Uint32 time_spent = SDL_GetTicks() - current_time;
+        if (time_spent < (Uint32)publish_interval_ms) {
+            SDL_Delay(publish_interval_ms - time_spent);
+        }
     }
     pthread_exit(NULL);
 }
@@ -97,6 +104,12 @@ void* DashboardPublishThread(void* arg) {
         pthread_mutex_lock(&comm->mutex_terminate);
         stop = comm->terminate_thread;
         pthread_mutex_unlock(&comm->mutex_terminate);
+
+        //sleep the ramaining time
+        Uint32 time_spent = SDL_GetTicks() - current_time;
+        if (time_spent < (Uint32)publish_interval_ms) {
+            SDL_Delay(publish_interval_ms - time_spent);
+        }
     }
     pthread_exit(NULL);
 }
