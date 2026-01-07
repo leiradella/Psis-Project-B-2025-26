@@ -1,0 +1,109 @@
+syntax = "proto2";
+
+//============Client/server connections and moves===================
+enum ClientMessageType {
+    CONNECT = 0;
+    DISCONNECT = 1;
+    MOVE = 2;
+}
+
+enum ServerMessageType {
+    OK = 0;
+    ERROR = 1;
+}
+
+//client sends a message with type (connect/disconnect/move)
+//when connecting, id doesnt matter. when disconnecting/moving, 
+//it should send the id it received from the server when it connected
+
+//connect message -> type = CONNECT, id doesnt matter
+//server response -> type = OK, random ID (should be stored)
+
+//disconnect message -> type = DISCONNECT, id = stored id from server
+//server response -> type = OK, id doesnt matter
+
+//move message -> type = MOVE, id = stored id from server, keys = keys pressed
+//server response -> type = OK, id doesnt matter
+
+//if server errors any time it just sends a message with type = ERROR
+
+message ClientMessage {
+    required ClientMessageType msg_type = 1;
+    required string id = 2; //we need this for when the client disconnects
+    
+    //bools for each key, 2 bools per key (down and up)
+    required bool   wKeyDown    = 3;
+    required bool   aKeyDown    = 4;
+    required bool   sKeyDown    = 5;
+    required bool   dKeyDown    = 6;
+    required bool   wKeyUp      = 7;
+    required bool   aKeyUp      = 8;
+    required bool   sKeyUp      = 9;
+    required bool   dKeyUp      = 10;
+}
+
+//servidor responde com OK/ERROR e o id da nave de volta
+message ServerMessage {
+    required ServerMessageType msg_type = 1;
+    required string id = 2;
+}
+
+//============Server/Client universe publish===================
+
+//periodically the server sends the universe state to the clients
+//the clients dont receive the entire game state, just what they need to render it
+//so, ships, trash and planets
+
+//we have to define the structure of those objects here too
+
+//clients need to know the position, angle and name of each ship
+message ShipStruct{
+    required string name = 1;
+    required float x = 2;
+    required float y = 3;
+    required float angle = 4;
+}
+
+//clients need to know the position of each trash piece
+message TrashStruct{
+    required float x = 1;
+    required float y = 2;
+}
+
+//clients need to know the position, name and the index of the recycler planet
+message PlanetStruct{
+    required string name = 1;
+    required float x = 2;
+    required float y = 3;
+    required int32 recycler_index = 4; //index of recycler planet
+}
+
+message UniverseStateMessage {
+    //repeated because they're all vectors
+    repeated ShipStruct ships = 1;
+    repeated TrashStruct trash_pieces = 2;
+    repeated PlanetStruct planets = 3;
+
+    //universe size
+    required int32 universe_size = 4;
+
+    //need to know gameover state
+    required bool game_over = 5;
+
+    //bg color
+    required int32 bg_r = 6;
+    required int32 bg_g = 7;
+    required int32 bg_b = 8;
+    required int32 bg_a = 9;
+}
+
+//============Dashboard messages===================
+
+//server message to dashboard 
+message DashboardMessage {
+    repeated int32 recycled_trash = 1; //vector with recycled trash counts per planet
+    repeated int32 ship_cargo = 2; //vector with cargo counts per ship
+
+    required int32 roaming_trash = 3; //number of roaming trash pieces in universe
+    required int32 max_trash_capacity = 4; //max trash capacity of universe
+}

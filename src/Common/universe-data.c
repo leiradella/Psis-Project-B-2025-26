@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include <SDL2/SDL_image.h>
 
+#include <SDL2/SDL.h>
 #include <libconfig.h>
 
 #include "universe-data.h"
@@ -27,21 +27,6 @@ Vector AddVectors(Vector v1, Vector v2) {
 
     //convert back to polar coordinates
     return MakeVector(x_total, y_total);
-}
-
-void InitializeShip(GameState* game_state, int id) {
-    if (id < 0 || id >= game_state->n_ships) {
-        printf("Invalid ship ID %d for initialization.\n", id);
-        return;
-    }
-
-    game_state->ships[id].is_active = 1;
-
-    //Set initial position to the corresponding planet's position
-    game_state->ships[id].Position.x = game_state->planets[id].position.x;
-    game_state->ships[id].Position.y = game_state->planets[id].position.y;
-    
-    game_state->ships[id].current_trash = 0;
 }
 
 int _GetUniverseParameters(const char* config_name, UniverseConfig* universe_config) {
@@ -84,6 +69,11 @@ int _ReadUniverseData(config_t *cfg, UniverseConfig *universe_config) {
     status += _LookupUniverseInt(cfg, &universe_config->max_trash, "universe.max_trash");
     status += _LookupUniverseInt(cfg, &universe_config->starting_trash, "universe.starting_trash");
     status += _LookupUniverseInt(cfg, &universe_config->trash_ship_capacity, "universe.trash_ship_capacity");
+    status += _LookupUniverseInt(cfg, &universe_config->trash_generation_rate_s, "universe.trash_generation_rate_s");
+    status += _LookupUniverseInt(cfg, &universe_config->planet_change_rate_s, "universe.planet_change_rate_s");
+    status += _LookupUniverseInt(cfg, &universe_config->rep_port, "universe.rep_port");
+    status += _LookupUniverseInt(cfg, &universe_config->dashboard_port, "universe.dashboard_port");
+    status += _LookupUniverseInt(cfg, &universe_config->pub_port, "universe.pub_port");
     return status;
 }
 
@@ -232,24 +222,38 @@ Trash *_InitializeTrash(int n_trashes, int universe_size, int seed) {
     return trashes;
 }
 
-Ship* _InitializeShips(int n_ships, int trash_ship_capacity, Planet* planets) {
+Ship *_InitializeShips(Planet* planets, int n_ships, int universe_size, int seed) {
+    (void)seed;
+
     //create ship vector
     Ship* ships = (Ship*)malloc(n_ships * sizeof(Ship));
-    
+
     //initialize ship properties
-    for (int i = 0; i < n_ships; i++) {
+    for (int i=0; i < n_ships; i++) {
+
+        //ship constants
+        ships[i].mass = SHIP_MASS;
         ships[i].radius = SHIP_RADIUS;
-        ships[i].current_trash = 0;
-        ships[i].planet_id = 'A' + i; //each ship starts at its corresponding planet
-        ships[i].is_active = 0; //ships start inactive
 
-        ships[i].direction = INVALID_DIRECTION;
+        //give ships names based on home planet (same name = home planet)
+        ships[i].name = planets[i].name;
 
-        ships[i].imageTexture = NULL;
+        //we cant spawn the ship inside the planet due to the laws of physics (lol)
+        //so we just place it at the center of the universe
+        ships[i].position.x =  universe_size / 2.0f;
+        ships[i].position.y =  universe_size / 2.0f;
 
-        //initialize with their respective planet positions
-        ships[i].Position.x = planets[i].position.x;
-        ships[i].Position.y = planets[i].position.y;
+        //no initial velocity or acceleration or trash
+        ships[i].velocity.amplitude = 0.0f;
+        ships[i].velocity.angle = 0.0f;
+
+        ships[i].acceleration.amplitude = 0.0f;
+        ships[i].acceleration.angle = 0.0f;
+
+        ships[i].trash_amount = 0;
+
+        //all ships start disabled
+        ships[i].enabled = 0;
     }
 
     return ships;
@@ -279,22 +283,47 @@ GameState *CreateInitialUniverseState(const char* config_name, int seed) {
     //initialize the trash
     Trash *trashes = _InitializeTrash(universe_config.max_trash, universe_config.universe_size, seed);
 
-    //initialize ships
-    Ship* ships = _InitializeShips(universe_config.n_planets, universe_config.trash_ship_capacity, planets);
+    //initialize the ships
+    Ship* ships = _InitializeShips(planets, universe_config.n_planets, universe_config.universe_size, seed); 
 
     //gamestate struct to return
     GameState* game_state = malloc(sizeof(GameState));
     game_state->universe_size = universe_config.universe_size;
+
+    //planets
     game_state->planets = planets;
     game_state->n_planets = universe_config.n_planets;
+    game_state->recycler_planet_index = rand_r((unsigned int*)&seed) % universe_config.n_planets;
+    game_state->planet_change_rate = universe_config.planet_change_rate_s*1000;
+    game_state->last_planet_change_time = SDL_GetTicks();
+
+    //trashes
     game_state->trashes = trashes;
     game_state->n_trashes = universe_config.starting_trash;
     game_state->max_trash = universe_config.max_trash;
+    game_state->trash_gen_rate = universe_config.trash_generation_rate_s*1000;
+    game_state->last_trash_gen_time = SDL_GetTicks();
+
+    //ships
     game_state->ships = ships;
-    game_state->n_ships = 0;
-    game_state->max_ships = universe_config.n_planets;
-    game_state->trash_ship_capacity = universe_config.trash_ship_capacity;
+    game_state->n_ships = universe_config.n_planets;
+
     game_state->is_game_over = 0;
+
+    game_state->rep_port = universe_config.rep_port;
+    game_state->dashboard_port = universe_config.dashboard_port;
+    game_state->pub_port = universe_config.pub_port;
+
+    game_state->mutex_enable = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
+    game_state->mutex_keys = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
+
+    //background color (gray)
+    game_state->bg_r = 200;
+    game_state->bg_g = 200;
+    game_state->bg_b = 200;
+    game_state->bg_a = 255;  
+
+    // game_state->ships[0].enabled = 1; //enable the first ship for testing
 
     return game_state;
 }
@@ -304,4 +333,89 @@ void DestroyUniverse(GameState** game_state) {
     free((*game_state)->trashes);
     free(*game_state);
     *game_state = NULL;
+}
+
+GameStateSnapshot* CreateUniverseSnapshot(GameState* game_state) {
+    //create snapshot struct
+    GameStateSnapshot* snapshot = malloc(sizeof(GameStateSnapshot));
+    if (snapshot == NULL) {
+        return NULL;
+    }
+
+    //initialize snapshot data
+    snapshot->n_ships = game_state->n_ships;
+    snapshot->ships = malloc(sizeof(Ship) * snapshot->n_ships);
+    if (snapshot->ships == NULL) {
+        free(snapshot);
+        return NULL;
+    }
+
+    snapshot->n_trashes = game_state->n_trashes;
+    snapshot->max_trash = game_state->max_trash;
+    snapshot->trashes = malloc(sizeof(Trash) * game_state->max_trash);
+    if (snapshot->trashes == NULL) {
+        free(snapshot->ships);
+        free(snapshot);
+        return NULL;
+    }
+
+    snapshot->n_planets = game_state->n_planets;
+    snapshot->planets = malloc(sizeof(Planet) * snapshot->n_planets);
+    if (snapshot->planets == NULL) {
+        free(snapshot->trashes);
+        free(snapshot->ships);
+        free(snapshot);
+        return NULL;
+    }
+
+    snapshot->bg_r = game_state->bg_r;
+    snapshot->bg_g = game_state->bg_g;
+    snapshot->bg_b = game_state->bg_b;
+    snapshot->bg_a = game_state->bg_a;
+
+    snapshot->is_game_over = game_state->is_game_over;
+
+    snapshot->universe_size = game_state->universe_size;
+
+    return snapshot;
+}
+
+void UpdateGameStateSnapshot(GameState* game_state, GameStateSnapshot* snapshot) {
+    //lock the snapshot mutex because the publish thread may be reading it
+    pthread_mutex_lock(&game_state->mutex_snapshot);
+
+    //update ships
+    snapshot->n_ships = game_state->n_ships;
+    for (int i=0; i<snapshot->n_ships; i++) {
+        snapshot->ships[i] = game_state->ships[i];
+    }
+
+    //update trashes
+    snapshot->n_trashes = game_state->n_trashes;
+    for (int i=0; i<snapshot->n_trashes; i++) {
+        snapshot->trashes[i] = game_state->trashes[i];
+    }
+
+    //update planets
+    snapshot->n_planets = game_state->n_planets;
+    for (int i=0; i<snapshot->n_planets; i++) {
+        snapshot->planets[i] = game_state->planets[i];
+    }
+
+    //update bg color
+    snapshot->bg_r = game_state->bg_r;
+    snapshot->bg_g = game_state->bg_g;
+    snapshot->bg_b = game_state->bg_b;
+    snapshot->bg_a = game_state->bg_a;
+
+    //update game over flag
+    snapshot->is_game_over = game_state->is_game_over;
+
+    //update universe size
+    snapshot->universe_size = game_state->universe_size;
+
+    //unlock mutex
+    pthread_mutex_unlock(&game_state->mutex_snapshot);
+
+    return;
 }

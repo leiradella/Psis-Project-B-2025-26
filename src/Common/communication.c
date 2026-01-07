@@ -1,0 +1,579 @@
+#include "communication.h"
+#include "universe-data.h"
+
+#include "../msgB.pb-c.h"
+#include <zmq.h>
+
+#include <stdio.h>
+#include <string.h>
+#include <time.h>
+#include <stdint.h>
+#include <pthread.h>
+#include <errno.h>
+
+
+#define CLIENT_CONNECT CLIENT_MESSAGE_TYPE__CONNECT
+#define CLIENT_DISCONNECT CLIENT_MESSAGE_TYPE__DISCONNECT
+#define CLIENT_MOVE CLIENT_MESSAGE_TYPE__MOVE
+
+#define SERVER_CONNECT_OK SERVER_MESSAGE_TYPE__OK
+#define SERVER_CONNECT_ERROR SERVER_MESSAGE_TYPE__ERROR
+
+#define RECV_TIMEOUT_MS 100 //timeout for zmq recv in ms
+
+CommunicationManager* CommunicationInit(GameState* state, GameStateSnapshot* snapshot) {
+
+    int max_clients = state->n_ships;
+
+    CommunicationManager* comm = malloc(sizeof(CommunicationManager));
+    if (comm == NULL) {
+        return NULL;
+    }
+
+    //add gamestate reference
+    comm->game_state = state;
+
+    //snapshot reference
+    comm->snapshot = snapshot;
+
+    //initialize ZMQ context
+    comm->context = zmq_ctx_new();
+    if (comm->context == NULL) {
+        free(comm);
+        return NULL;
+    }
+
+    //thread flag
+    comm->terminate_thread = 0;
+    //thread flag mutex
+    comm->mutex_terminate = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
+
+    //allocate memory for clients array
+    comm->clients = (ClientID*)malloc(sizeof(ClientID) * max_clients);
+    if (comm->clients == NULL) {
+        zmq_ctx_destroy(comm->context);
+        free(comm);
+        return NULL;
+    }
+    
+    //Initialize client tracking
+    comm->max_clients = max_clients;
+    comm->num_connected = 0;
+    
+    //Mark all slots as empty (ship_id = -1 means empty)
+    for (int i = 0; i < max_clients; i++) {
+        comm->clients[i].ship_index = -1;
+        comm->clients[i].connection_id = NULL;
+    }
+
+    //initialize client sockets
+
+    //create a string for the ports
+    char rep_port_str[16];
+    char dashboard_port_str[16];
+    char pub_port_str[16];
+
+    snprintf(rep_port_str, sizeof(rep_port_str), "tcp://*:%d", state->rep_port);
+    snprintf(dashboard_port_str, sizeof(dashboard_port_str), "tcp://*:%d", state->dashboard_port);
+    snprintf(pub_port_str, sizeof(pub_port_str), "tcp://*:%d", state->pub_port);
+
+
+    //====CLIENT REP=====
+    comm->client_rep_socket = zmq_socket(comm->context, ZMQ_REP);
+    
+    //set receive timeout so thread can check terminate flag
+    int recv_timeout = RECV_TIMEOUT_MS; //timeout in ms
+    zmq_setsockopt(comm->client_rep_socket, ZMQ_RCVTIMEO, &recv_timeout, sizeof(recv_timeout));
+    
+    zmq_bind(comm->client_rep_socket, rep_port_str);
+
+    //====CLIENT PUB=====
+    comm->client_pub_socket = zmq_socket(comm->context, ZMQ_PUB);
+    zmq_bind(comm->client_pub_socket, pub_port_str);
+
+    //====DASHBOARD PUB=====
+    comm->dashboard_rep_socket = zmq_socket(comm->context, ZMQ_PUB);
+    zmq_bind(comm->dashboard_rep_socket, dashboard_port_str);
+    
+    if (comm->client_rep_socket == NULL || comm->client_pub_socket == NULL || comm->dashboard_rep_socket == NULL) {
+        free(comm->clients);
+        zmq_ctx_destroy(comm->context);
+        free(comm);
+        return NULL;
+    }
+
+    return comm;
+}
+
+
+//==========CLIENT/SERVER CONNECT/DISCONNECT/MOVE MESSAGE==========
+void CommunicationQuit(CommunicationManager** comm) {
+    if (comm == NULL || *comm == NULL) {
+        return;
+    }
+
+    //close ZMQ sockets
+    if ((*comm)->client_rep_socket != NULL) {
+        zmq_close((*comm)->client_rep_socket);
+    }
+    if ((*comm)->client_pub_socket != NULL) {
+        zmq_close((*comm)->client_pub_socket);
+    }
+    if ((*comm)->dashboard_rep_socket != NULL) {
+        zmq_close((*comm)->dashboard_rep_socket);
+    }
+
+    //destroy ZMQ context
+    if ((*comm)->context != NULL) {
+        zmq_ctx_destroy((*comm)->context);
+    }
+
+    //free clients array
+    if ((*comm)->clients != NULL) {
+        free((*comm)->clients);
+    }
+
+    //free CommunicationManager struct
+    free(*comm);
+    *comm = NULL;
+}
+
+void _SendClientResponse(CommunicationManager* comm, ServerMessageType msg_type, char* client_id) {
+    ServerMessage response = SERVER_MESSAGE__INIT;
+
+    if (client_id == NULL) {
+        response.id = strdup("");
+    } else {
+        response.id = strdup(client_id);
+    }
+
+    response.msg_type = msg_type;
+
+    //serialize protobuf message into zmq message and send
+    int msg_len = server_message__get_packed_size(&response);
+    uint8_t* msg_buf = (uint8_t*)malloc(msg_len);
+    server_message__pack(&response, msg_buf);
+    zmq_send(comm->client_rep_socket, msg_buf, msg_len, 0);
+
+    free(response.id);
+    free(msg_buf);
+}
+
+void _ProcessClientConnect(CommunicationManager* comm) {
+    //process a connection request from a client
+    //check for an empty slot
+    int slot = -1;
+    for (int i=0; i<comm->max_clients; i++) {
+        if (comm->clients[i].ship_index == -1) {
+            slot = i;
+            break;
+        }
+    }
+
+    //message contents
+    ServerMessageType msg_type;
+    char id[33];
+
+    if (slot == -1) {
+        //error response
+        msg_type = SERVER_CONNECT_ERROR;
+        
+        //invalid ID for error
+        id[0] = '\0';
+
+        printf("Connect message with unknown client ID received.\n");
+    } else {
+        printf("CLIENT CONNECTED\n");
+
+        //communication manager updates
+        comm->num_connected++;
+
+        //slot is an empty index for ship
+        comm->clients[slot].ship_index = slot;
+        
+        //create a random connection ID
+        static const char *hex = "0123456789abcdef";
+        for (int i=0; i<16; i++) {
+            unsigned int r = (unsigned int)rand();
+            r ^= (unsigned int)rand() << 8;
+
+            unsigned int byte = r & 0xFF;
+            id[i*2] = hex[(byte >> 4) & 0xF];
+            id[i*2 +1] = hex[byte & 0xF];
+        }
+        id[32] = '\0';
+
+        //assign ID to manager
+        comm->clients[slot].connection_id = strdup(id);
+
+        //enable ship in gamestate (lock because is_active is accessed by other threads)
+        pthread_mutex_lock(&comm->game_state->mutex_enable);
+        comm->game_state->ships[slot].enabled = 1;
+        pthread_mutex_unlock(&comm->game_state->mutex_enable);
+        //now when the client sends a move message with this id, we move ship at ship_index
+        //when a new client connects they are guaranteed to not get the same ship index
+
+        //set last active time
+        comm->clients[slot].last_active_time = SDL_GetTicks();
+
+        //prepare success response
+        msg_type = SERVER_CONNECT_OK;
+    }
+
+    //send response with connection ID
+    _SendClientResponse(comm, msg_type, id);
+}
+
+void _ProcessClientDisconnect(CommunicationManager* comm, char* client_id) {
+    //process a disconnection request from a client
+
+    //find the slot with the given ship_id
+    int slot = -1;
+    for (int i=0; i<comm->max_clients; i++) {
+        char* id = comm->clients[i].connection_id;
+
+        if (id == NULL) {
+            continue;
+        }
+
+        if (strcasecmp(id, client_id) == 0) {
+            slot = i;
+            break;
+        }
+    }
+
+    ServerMessageType msg_type;
+    
+    if (slot == -1) {
+        //unknown ship_id, send error response (must always respond in REQ-REP)
+        msg_type = SERVER_CONNECT_ERROR;
+
+        printf("Disconnect message with unknown client ID received.\n");
+    } else {
+        printf("CLIENT DISCONNECTED\n");
+
+        //communication manager updates
+        comm->num_connected--;
+        comm->clients[slot].ship_index = -1;
+        free(comm->clients[slot].connection_id);
+        comm->clients[slot].connection_id = NULL;
+
+        //disable ship in gamestate (lock because is_active is accessed by other threads)
+        pthread_mutex_lock(&comm->game_state->mutex_enable);
+        comm->game_state->ships[slot].enabled = 0;
+        pthread_mutex_unlock(&comm->game_state->mutex_enable);
+        
+        msg_type = SERVER_CONNECT_OK;
+    }
+    
+    //send response
+    _SendClientResponse(comm, msg_type, "");
+}
+
+void _ProcessClientMove(CommunicationManager* comm, char* client_id, protobuf_c_boolean* keys) {
+
+    //find the slot with the client_id to get the ship index
+    int slot = -1;
+    for (int i=0; i<comm->max_clients; i++) {
+        char* id = comm->clients[i].connection_id;
+        if (id == NULL) {
+            continue;
+        }
+
+        if (strcasecmp(id, client_id) == 0) {
+            slot = i;
+            break;
+        }
+    }
+
+    ServerMessageType msg_type;
+
+    if (slot == -1) {
+        //unknown client_id, respond with error
+        msg_type = SERVER_CONNECT_ERROR;
+        printf("Move message with unknown client ID received.\n");
+
+    } else {
+        printf("CLIENT MOVE MESSAGE RECEIVED\n");
+
+        //set last active time
+        comm->clients[slot].last_active_time = SDL_GetTicks();
+
+        //decypher keys
+        //lock
+        pthread_mutex_lock(&comm->game_state->mutex_keys);
+
+        //first 4 keydowns: w, a, s, d
+        if (keys[0]) comm->game_state->ships[slot].thrust = 0.10f;
+        if (keys[1]) comm->game_state->ships[slot].rotation = -5.0f;
+        if (keys[2]) comm->game_state->ships[slot].thrust = 0.0f;
+        if (keys[3]) comm->game_state->ships[slot].rotation = 5.0f;
+
+        //4 keyups: w, a, s, d
+        if (keys[4]) comm->game_state->ships[slot].thrust = 0.0f;
+        if (keys[5]) comm->game_state->ships[slot].rotation = 0.0f;
+        if (keys[6]) comm->game_state->ships[slot].thrust = 0.0f;
+        if (keys[7]) comm->game_state->ships[slot].rotation = 0.0f;
+
+        //unlock
+        pthread_mutex_unlock(&comm->game_state->mutex_keys);
+
+        msg_type = SERVER_CONNECT_OK;
+    }
+
+    //send response
+    _SendClientResponse(comm, msg_type, client_id);
+}
+
+int ReceiveClientMessage(CommunicationManager* comm) {
+    if (comm == NULL || comm->client_rep_socket == NULL) {
+        return -1;
+    }
+
+    zmq_msg_t msg;
+    zmq_msg_init(&msg);
+
+    //client message
+    ClientMessage* client_msg;
+    
+    //receive message
+    int msg_len = zmq_recvmsg(comm->client_rep_socket, &msg, 0);
+    
+    //check if receive failed
+    if (msg_len < 0) {
+        zmq_msg_close(&msg);
+        if (errno == EAGAIN) {
+            //timeout - not an error, just no message
+            return 0;
+        }
+        printf("ERROR: zmq_recvmsg failed\n");
+        return -1;
+    }
+
+    //unpack contents
+    void* msg_data = zmq_msg_data(&msg);
+    client_msg = client_message__unpack(NULL, msg_len, msg_data);
+
+    if(client_msg == NULL) {
+        //failed to unpack message - but we MUST send a response to maintain REQ-REP pattern
+        printf("ERROR: Failed to unpack client message\n");
+        _SendClientResponse(comm, SERVER_CONNECT_ERROR, "");
+        zmq_msg_close(&msg);
+        return -1;
+    }
+    
+
+    int return_value = -1;
+    //process message
+    if (client_msg->msg_type == CLIENT_CONNECT) {
+        _ProcessClientConnect(comm);
+        return_value = 1;
+    } else if (client_msg->msg_type == CLIENT_DISCONNECT) {
+        _ProcessClientDisconnect(comm, client_msg->id);
+        return_value = 1;
+    } else if (client_msg->msg_type == CLIENT_MOVE) {
+        //transform the keys into an array of booleans
+        protobuf_c_boolean keys[8];
+        keys[0] = client_msg->wkeydown;
+        keys[1] = client_msg->akeydown;
+        keys[2] = client_msg->skeydown;
+        keys[3] = client_msg->dkeydown;
+        keys[4] = client_msg->wkeyup;
+        keys[5] = client_msg->akeyup;
+        keys[6] = client_msg->skeyup;
+        keys[7] = client_msg->dkeyup;
+
+        _ProcessClientMove(comm, client_msg->id, keys);
+        return_value = 1;
+    } else {
+        //unknown message type - but we MUST send a response to maintain REQ-REP pattern
+        printf("ERROR: Unknown message type\n");
+        _SendClientResponse(comm, SERVER_CONNECT_ERROR, "");
+        return_value = -1;
+    }
+
+    client_message__free_unpacked(client_msg, NULL);
+    zmq_msg_close(&msg);
+    return return_value;
+}
+
+void CheckClientTimeouts(CommunicationManager* comm) {
+    if (comm == NULL) {
+        return;
+    }
+
+    Uint32 current_time = SDL_GetTicks();
+
+    for (int i = 0; i < comm->max_clients; i++) {
+        if (comm->clients[i].ship_index != -1) {
+            //active clients
+
+            //get ticks
+            Uint32 last_active = comm->clients[i].last_active_time;
+
+            //if the difference between current time and last active time exceeds timeout, disconnect
+            if ((current_time - last_active) > CLIENT_TIMEOUT_SEC * 1000) {
+                printf("Client with ship index %d timed out. Disconnecting...\n", comm->clients[i].ship_index);
+                _ProcessClientDisconnect(comm, comm->clients[i].connection_id);
+            }
+        }
+    }
+}
+
+//===========SERVER UNIVERSE PUBLISH=========================
+void SendUniverseState(CommunicationManager* comm) {
+    //start by creating the UniverseState message
+    UniverseStateMessage universe_msg = UNIVERSE_STATE_MESSAGE__INIT;
+
+    //now we can fill in the universe state message
+    pthread_mutex_lock(&comm->game_state->mutex_snapshot);
+    
+    //ships
+    universe_msg.n_ships = comm->snapshot->n_ships;
+    universe_msg.ships = malloc(sizeof(ShipStruct*) * universe_msg.n_ships);
+    for (size_t i = 0; i < universe_msg.n_ships; i++) {
+        //allocate and initialize each ship struct
+        universe_msg.ships[i] = malloc(sizeof(ShipStruct));
+        ship_struct__init(universe_msg.ships[i]);
+        
+        //copy ship data from snapshot
+
+        //name is name char + trash amount inside ship
+        char name_buf[32];
+        snprintf(name_buf, sizeof(name_buf), "%c%d", comm->snapshot->ships[i].name, comm->snapshot->ships[i].trash_amount);
+        universe_msg.ships[i]->name = strdup(name_buf);
+
+        universe_msg.ships[i]->x = comm->snapshot->ships[i].position.x;
+        universe_msg.ships[i]->y = comm->snapshot->ships[i].position.y;
+        universe_msg.ships[i]->angle = comm->snapshot->ships[i].angle;
+    }
+
+    //trashes
+    universe_msg.n_trash_pieces = comm->snapshot->n_trashes;
+    universe_msg.trash_pieces = malloc(sizeof(TrashStruct*) * universe_msg.n_trash_pieces);
+    for (size_t i = 0; i < universe_msg.n_trash_pieces; i++) {
+        //allocate and initialize each trash struct
+        universe_msg.trash_pieces[i] = malloc(sizeof(TrashStruct));
+        trash_struct__init(universe_msg.trash_pieces[i]);
+        universe_msg.trash_pieces[i]->x = comm->snapshot->trashes[i].position.x;
+        universe_msg.trash_pieces[i]->y = comm->snapshot->trashes[i].position.y;
+    }
+
+    //planets
+    universe_msg.n_planets = comm->snapshot->n_planets;
+    universe_msg.planets = malloc(sizeof(PlanetStruct*) * universe_msg.n_planets);
+    for (size_t i = 0; i < universe_msg.n_planets; i++) {
+        //allocate and initialize each planet struct
+        universe_msg.planets[i] = malloc(sizeof(PlanetStruct));
+        planet_struct__init(universe_msg.planets[i]);
+
+        //name is name char + trash amount inside planet
+        char name_buf[32];
+        snprintf(name_buf, sizeof(name_buf), "%c%d", comm->snapshot->planets[i].name, comm->snapshot->planets[i].trash_amount);
+        universe_msg.planets[i]->name = strdup(name_buf);
+
+        universe_msg.planets[i]->x = comm->snapshot->planets[i].position.x;
+        universe_msg.planets[i]->y = comm->snapshot->planets[i].position.y;
+        universe_msg.planets[i]->recycler_index = comm->game_state->recycler_planet_index;
+    }
+
+    //bg color
+    universe_msg.bg_r = comm->snapshot->bg_r;
+    universe_msg.bg_g = comm->snapshot->bg_g;
+    universe_msg.bg_b = comm->snapshot->bg_b;
+    universe_msg.bg_a = comm->snapshot->bg_a;
+
+    //game over state
+    universe_msg.game_over = (protobuf_c_boolean)comm->snapshot->is_game_over;
+
+    //universe size
+    universe_msg.universe_size = (int32_t)comm->snapshot->universe_size;
+
+    //unlock snapshot after reading
+    pthread_mutex_unlock(&comm->game_state->mutex_snapshot);
+    
+    //serialize and send the message
+    size_t msg_len = universe_state_message__get_packed_size(&universe_msg);
+    uint8_t* msg_buf = malloc(msg_len);
+    universe_state_message__pack(&universe_msg, msg_buf);
+    
+    zmq_send(comm->client_pub_socket, msg_buf, msg_len, 0);
+    
+    //cleanup
+    for (size_t i = 0; i < universe_msg.n_ships; i++) {
+        free(universe_msg.ships[i]->name);
+        free(universe_msg.ships[i]);
+    }
+    free(universe_msg.ships);
+    free(msg_buf);
+}
+
+//===========SERVER DASHBOARD PUBLISH=========================
+void SendDashboardUpdate(CommunicationManager* comm) {
+    //dashboard wants 4 things:
+    //1. recycled trash per planet
+    //2. trash cargo per ship
+    //3. roaming trash amount
+    //4. max trash capacity in universe
+    //we can get all these from the gamestate snapshot
+
+    DashboardMessage dashboard_msg = DASHBOARD_MESSAGE__INIT;
+    
+    //create variables
+    int recycled_trash[comm->snapshot->n_planets];
+    int ship_cargo[comm->snapshot->n_ships];
+    int roaming_trash;
+    int max_trash_capacity;
+
+    //lock snapshot
+    pthread_mutex_lock(&comm->game_state->mutex_snapshot);
+
+    //get what we need from snapshot
+
+    //recycled trash
+    for (size_t i = 0; i < (size_t)comm->snapshot->n_planets; i++) {
+        recycled_trash[i] = comm->snapshot->planets[i].trash_amount;
+    }
+
+    //trash cargo
+    for (size_t i = 0; i < (size_t)comm->snapshot->n_ships; i++) {
+        ship_cargo[i] = comm->snapshot->ships[i].trash_amount;
+    }
+    
+    //roaming trash
+    roaming_trash = comm->snapshot->n_trashes;
+
+    //max trash capacity
+    max_trash_capacity = comm->snapshot->max_trash;
+
+    //unlock snapshot
+    pthread_mutex_unlock(&comm->game_state->mutex_snapshot);
+
+    //fill in dashboard message
+    dashboard_msg.n_recycled_trash = comm->snapshot->n_planets;
+    dashboard_msg.recycled_trash = malloc(sizeof(int32_t) * dashboard_msg.n_recycled_trash);
+    for (size_t i = 0; i < dashboard_msg.n_recycled_trash; i++) {
+        dashboard_msg.recycled_trash[i] = recycled_trash[i];
+    }
+
+    dashboard_msg.n_ship_cargo = comm->snapshot->n_ships;
+    dashboard_msg.ship_cargo = malloc(sizeof(int32_t) * dashboard_msg.n_ship_cargo);
+    for (size_t i = 0; i < dashboard_msg.n_ship_cargo; i++) {
+        dashboard_msg.ship_cargo[i] = ship_cargo[i];    
+    }
+
+    dashboard_msg.roaming_trash = roaming_trash;
+    dashboard_msg.max_trash_capacity = max_trash_capacity;
+
+    //send dashboard message
+    size_t msg_len = dashboard_message__get_packed_size(&dashboard_msg);
+    uint8_t* msg_buf = malloc(msg_len);
+    dashboard_message__pack(&dashboard_msg, msg_buf);
+    zmq_send(comm->dashboard_rep_socket, msg_buf, msg_len, 0);
+    //cleanup
+    free(dashboard_msg.recycled_trash);
+    free(dashboard_msg.ship_cargo);
+    free(msg_buf);
+    
+    return;
+}

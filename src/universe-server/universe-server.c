@@ -1,0 +1,324 @@
+#include <stdlib.h>
+#include <time.h>
+#include <pthread.h>
+
+#include <libconfig.h>
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
+
+#include "universe-data.h"
+#include "physics-rules.h"
+#include "display.h"
+#include "communication.h"
+
+//thread for client connections/moves
+void* ClientCommunicationThread(void* arg) {
+    CommunicationManager* comm = (CommunicationManager*)arg;
+    if (comm == NULL) {
+        printf("Communication thread received NULL argument (should have received CommunicationManager*). Exiting thread...\n");
+        pthread_exit(NULL);
+    }
+
+    int stop = comm->terminate_thread;
+
+    while (!stop) {
+        //check for client messages
+        int result = ReceiveClientMessage(comm);
+        if (result == -1) {
+            //error occurred
+            printf("Error receiving client message.\n");
+        }
+
+        //check for client timeouts
+        CheckClientTimeouts(comm);
+
+        //we need to do this because main thread accesses terminate_thread
+        pthread_mutex_lock(&comm->mutex_terminate);
+        stop = comm->terminate_thread;
+        pthread_mutex_unlock(&comm->mutex_terminate);
+    } 
+    pthread_exit(NULL);
+}
+
+//thread for publishing universe state to clients
+void* UniversePublishThread(void* arg) {
+    CommunicationManager* comm = (CommunicationManager*)arg;
+    if (comm == NULL) {
+        printf("Communication thread received NULL argument (should have received CommunicationManager*). Exiting thread...\n");
+        pthread_exit(NULL);
+    }
+
+    //send universe state at fixed intervals
+    const int publish_interval_ms = 10;
+    Uint32 last_publish_time = SDL_GetTicks();
+
+    int stop = comm->terminate_thread;
+
+    while (!stop) {
+
+        Uint32 current_time = SDL_GetTicks();
+        if (current_time - last_publish_time >= (Uint32)publish_interval_ms) {
+            //time to publish
+            SendUniverseState(comm);
+            last_publish_time = current_time;
+        }
+
+        //we need to do this because main thread accesses terminate_thread
+        pthread_mutex_lock(&comm->mutex_terminate);
+        stop = comm->terminate_thread;
+        pthread_mutex_unlock(&comm->mutex_terminate);
+
+
+        //sleep for the remaining time
+        Uint32 time_spent = SDL_GetTicks() - current_time;
+        if (time_spent < (Uint32)publish_interval_ms) {
+            SDL_Delay(publish_interval_ms - time_spent);
+        }
+    }
+    pthread_exit(NULL);
+}
+
+void* DashboardPublishThread(void* arg) {
+    CommunicationManager* comm = (CommunicationManager*)arg;
+    if (comm == NULL) {
+        printf("Dashboard communication thread received NULL argument (should have received CommunicationManager*). Exiting thread...\n");
+        pthread_exit(NULL);
+    }
+
+    //send dashboard updates at fixed intervals
+    const int publish_interval_ms = 1000; //1 second
+    Uint32 last_publish_time = SDL_GetTicks();
+
+    int stop = comm->terminate_thread;
+
+    while (!stop) {
+
+        Uint32 current_time = SDL_GetTicks();
+        if (current_time - last_publish_time >= (Uint32)publish_interval_ms) {
+            //time to publish
+            SendDashboardUpdate(comm);
+            last_publish_time = current_time;
+        }
+
+        //we need to do this because main thread accesses terminate_thread
+        pthread_mutex_lock(&comm->mutex_terminate);
+        stop = comm->terminate_thread;
+        pthread_mutex_unlock(&comm->mutex_terminate);
+
+        //sleep the ramaining time
+        Uint32 time_spent = SDL_GetTicks() - current_time;
+        if (time_spent < (Uint32)publish_interval_ms) {
+            SDL_Delay(publish_interval_ms - time_spent);
+        }
+    }
+    pthread_exit(NULL);
+}
+
+int main(int argc, char* argv[]) {
+
+    (void)argc; (void)argv; //unused
+
+    //seed random number generator with current time
+    srand(time(NULL));
+    int seed = rand(); //initialize seed with a random value
+
+    //create the universal initial state here using universe_config parameters
+    GameState* game_state = CreateInitialUniverseState("universe_config.conf", seed);
+    if (game_state == NULL) {
+        printf("Failed to create initial universe state. Exiting...\n");
+        return 1;
+    }
+
+    //create gamestate snapshot for communication manager
+    GameStateSnapshot* snapshot = CreateUniverseSnapshot(game_state);
+    if (snapshot == NULL) {
+        printf("Failed to create gamestate snapshot. Exiting...\n");
+        DestroyUniverse(&game_state);
+        return 1;
+    }
+
+    //initialize communications
+    CommunicationManager* comm = CommunicationInit(game_state, snapshot); //cant have more clients than ships
+    if (comm == NULL) {
+        printf("Failed to initialize communication manager. Exiting...\n");
+        DestroyUniverse(&game_state);
+        return 1;
+    }
+
+    //start a thread to handle client connections
+    pthread_t comm_thread;
+    if (pthread_create(&comm_thread, NULL, ClientCommunicationThread, (void*)comm) != 0) {
+        printf("Failed to create communication thread. Exiting...\n");
+        CommunicationQuit(&comm);
+        DestroyUniverse(&game_state);
+        return 1;
+    }
+    printf("Client communication thread depolyed.\n");
+
+    //start a thread to publish universe state to clients
+    pthread_t publish_thread;
+    if (pthread_create(&publish_thread, NULL, UniversePublishThread, (void*)comm) != 0) {
+        printf("Failed to create universe publish thread. Exiting...\n");
+        //signal communication thread to terminate
+        pthread_mutex_lock(&comm->mutex_terminate);
+        comm->terminate_thread = 1;
+        pthread_mutex_unlock(&comm->mutex_terminate);
+        pthread_join(comm_thread, NULL);
+        CommunicationQuit(&comm);
+        DestroyUniverse(&game_state);
+        return 1;
+    }
+    printf("Universe publish thread depolyed.\n");
+
+    //start a thread to publish dashboard updates
+    pthread_t dashboard_thread;
+    if (pthread_create(&dashboard_thread, NULL, DashboardPublishThread, (void*)comm) != 0) {
+        printf("Failed to create dashboard publish thread. Exiting...\n");
+        //signal communication thread to terminate
+        pthread_mutex_lock(&comm->mutex_terminate);
+        comm->terminate_thread = 1;
+        pthread_mutex_unlock(&comm->mutex_terminate);
+        pthread_join(comm_thread, NULL);
+        pthread_join(publish_thread, NULL);
+        CommunicationQuit(&comm);
+        DestroyUniverse(&game_state);
+        return 1;
+    }
+    printf("Dashboard publish thread depolyed.\n");
+
+    //Initalize SDL
+    if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
+        printf("SDL_Init Error: %s\n", SDL_GetError());
+        DestroyUniverse(&game_state);
+        CommunicationQuit(&comm);
+        return 1;
+    }
+
+    //Initialize SDL_ttf
+    if (TTF_Init() != 0) {
+        printf("TTF_Init Error: %s\n", TTF_GetError());
+        SDL_Quit();
+        DestroyUniverse(&game_state);
+        CommunicationQuit(&comm);
+        return 1;
+    }
+
+    //load font
+    TTF_Font* font = TTF_OpenFont("arial.ttf", 12);
+    if (font == NULL) {
+        printf("Failed to load font: %s\n", TTF_GetError());
+        SDL_Quit();
+        DestroyUniverse(&game_state);
+        CommunicationQuit(&comm);
+        exit(1);
+    }
+    game_state->font = font;
+
+    //create SDL_window variable
+    SDL_Window *window = SDL_CreateWindow(
+        "Universe Simulator", 
+        SDL_WINDOWPOS_CENTERED, 
+        SDL_WINDOWPOS_CENTERED, 
+        game_state->universe_size, 
+        game_state->universe_size, 
+        SDL_WINDOW_SHOWN
+    );
+        //check if window was created successfully
+    if (window == NULL) {
+        printf("SDL_CreateWindow Error: %s\n", SDL_GetError());
+        SDL_Quit();
+        DestroyUniverse(&game_state);
+        CommunicationQuit(&comm);
+        return 1;
+    }
+
+    //create SDL_renderer variable
+    SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+
+    if (renderer == NULL) {
+        SDL_DestroyWindow(window);
+        printf("SDL_CreateRenderer Error: %s\n", SDL_GetError());
+        SDL_Quit();
+        DestroyUniverse(&game_state);
+        CommunicationQuit(&comm);
+        return 1;
+    }
+
+    //main loop flag
+    int running = 1;
+
+    //timing variables for independent update and draw frequencies
+    const int UPDATE_FPS = 100;           //updates per second (physics/logic)
+    const int DRAW_FPS = 30;              //frames per second (rendering)
+    const float UPDATE_INTERVAL = 1000.0f / (float)UPDATE_FPS;  //milliseconds per update
+    const float DRAW_INTERVAL = 1000.0f / (float)DRAW_FPS;      //milliseconds per frame
+
+    Uint32 last_update_time = SDL_GetTicks();
+    Uint32 last_draw_time = SDL_GetTicks();
+
+    //main loop: check events, update universe state, draw universe at independent rates
+    while (running) {
+        Uint32 current_time = SDL_GetTicks();
+
+        //always check for events
+        CheckEvents(&running, game_state);
+
+        //update universe at UPDATE_FPS rate
+        if (current_time - last_update_time >= UPDATE_INTERVAL) {
+            UpdateUniverse(game_state);
+            UpdateGameStateSnapshot(game_state, comm->snapshot);
+            last_update_time = current_time;
+        }
+
+        //draw at DRAW_FPS rate
+        if (current_time - last_draw_time >= DRAW_INTERVAL) {
+            Draw(renderer, game_state);
+            last_draw_time = current_time;
+        }
+
+        //calculate time until next event and sleep efficiently
+        //update the update and draw times to reflect this sleep
+        current_time = SDL_GetTicks();
+        float time_to_next_update = UPDATE_INTERVAL - (current_time - last_update_time);
+        float time_to_next_draw = DRAW_INTERVAL - (current_time - last_draw_time);
+
+        float time_to_next_event;
+        if (time_to_next_update < time_to_next_draw) {
+            time_to_next_event = time_to_next_update;
+        } else {
+            time_to_next_event = time_to_next_draw;
+        }
+        
+        if (time_to_next_event > 1) {
+            SDL_Delay((Uint32)(time_to_next_event - 1));
+        }
+    }
+
+    //signal communication thread to terminate
+    printf("Signaling communication thread to terminate...\n");
+    pthread_mutex_lock(&comm->mutex_terminate);
+    comm->terminate_thread = 1;
+    pthread_mutex_unlock(&comm->mutex_terminate);
+    //wait for communication thread to finish
+    pthread_join(comm_thread, NULL);
+    printf("Communication thread terminated.\n");
+
+    //destroy SDL variables and quit SDL
+    TTF_CloseFont(game_state->font);
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
+    TTF_Quit();
+    SDL_Quit();
+    printf("SDL cleaned up and quit.\n");
+
+    //free allocated universe state memory
+    DestroyUniverse(&game_state);
+    printf("Universe destroyed.\n");
+
+    //cleanup comms
+    CommunicationQuit(&comm);
+    printf("Communication manager cleaned up.\n");
+
+    printf("Universe Simulator exited successfully.\n");
+    return 0;
+}

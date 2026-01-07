@@ -1,0 +1,177 @@
+#include "display.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <pthread.h>
+
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
+#include <SDL2/SDL2_gfxPrimitives.h>
+
+void _DrawPlanets(SDL_Renderer* renderer, GameState* game_state) {
+
+    //planets will be drawn as just circles with their names on the top right
+    for (int i = 0; i < game_state->n_planets; i++) {
+        //draw planet i as a filled circle (blue) and recycler planet as green
+
+        int r,g,b,a;
+        if (i == game_state->recycler_planet_index) {
+            r = 0; g = 255; b = 0; a = 255; //green for recycler planet
+        } else {
+            r = 0; g = 0; b = 255; a = 255; //blue for normal planets
+        }
+
+        filledCircleRGBA(renderer, (int)game_state->planets[i].position.x, (int)game_state->planets[i].position.y, (int)game_state->planets[i].radius, r, g, b, a);
+
+        //draw planet name at top-right of planet
+        //name is a single char + the amount of trash inside the planet
+        char name_text[10];
+        snprintf(name_text, sizeof(name_text), "%c%d", game_state->planets[i].name, game_state->planets[i].trash_amount);
+        SDL_Color textColor = {0, 0, 0, 255}; //black color
+        
+        SDL_Surface* textSurface = TTF_RenderText_Solid(game_state->font, name_text, textColor);
+        if (textSurface == NULL) {
+            printf("Failed to create text surface: %s\n", TTF_GetError());
+            exit(1);
+        }
+
+        SDL_Texture* textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
+        if (textTexture == NULL) {
+            printf("Failed to create text texture: %s\n", SDL_GetError());
+            SDL_FreeSurface(textSurface);
+            exit(1);
+        }
+
+        SDL_Rect textRect;
+        textRect.x = (int)(game_state->planets[i].position.x + game_state->planets[i].radius);
+        textRect.y = (int)(game_state->planets[i].position.y - game_state->planets[i].radius);
+        textRect.w = textSurface->w * 2;  
+        textRect.h = textSurface->h * 2;
+        SDL_FreeSurface(textSurface);
+        SDL_RenderCopy(renderer, textTexture, NULL, &textRect);
+        SDL_DestroyTexture(textTexture);
+    }
+
+}
+
+void _DrawTrash(SDL_Renderer* renderer, GameState* game_state) {
+    
+    //trash will be drawn as small red circles
+    for (int i = 0; i < game_state->n_trashes; i++) {
+        filledCircleRGBA(renderer, (int)game_state->trashes[i].position.x, (int)game_state->trashes[i].position.y, (int)game_state->trashes[i].radius, 255, 0, 0, 255);
+    }
+}
+
+void _DrawShips(SDL_Renderer* renderer, GameState* game_state) {
+    //render ships as yellow triangles with their name and trash amount
+
+    for (int i = 0; i < game_state->n_ships; i++) {
+        pthread_mutex_lock(&game_state->mutex_enable);
+        if (game_state->ships[i].enabled == 0) {
+            pthread_mutex_unlock(&game_state->mutex_enable);
+            continue; //dont draw disabled ships
+        }
+        pthread_mutex_unlock(&game_state->mutex_enable);
+
+        int r,g,b,a;
+        r = 255; g = 255; b = 0; a = 255; //yellow for ships
+
+        //ships are yellow triangles pointing in the direction of their velocity
+
+        //convert to rad for sdl
+        float angle_rad = game_state->ships[i].angle * (3.14159265f / 180.0f);
+        //first point is the tip of the ship
+        Sint16 x1 = (Sint16)(game_state->ships[i].position.x + game_state->ships[i].radius * cos(angle_rad));
+        Sint16 y1 = (Sint16)(game_state->ships[i].position.y + game_state->ships[i].radius * sin(angle_rad));
+        //other two points are the back corners
+        Sint16 x2 = (Sint16)(game_state->ships[i].position.x + game_state->ships[i].radius * cos(angle_rad + 2.5f));
+        Sint16 y2 = (Sint16)(game_state->ships[i].position.y + game_state->ships[i].radius * sin(angle_rad + 2.5f));
+        Sint16 x3 = (Sint16)(game_state->ships[i].position.x + game_state->ships[i].radius * cos(angle_rad - 2.5f));
+        Sint16 y3 = (Sint16)(game_state->ships[i].position.y + game_state->ships[i].radius * sin(angle_rad - 2.5f));
+        
+        //draw filled triangle
+        Sint16 vx[3] = {x1, x2, x3};
+        Sint16 vy[3] = {y1, y2, y3};
+        filledPolygonRGBA(renderer, vx, vy, 3, r, g, b, a);
+
+        //draw ship name at top-right of ship and trash amount
+        char name_text[10];
+        snprintf(name_text, sizeof(name_text), "%c%d", game_state->ships[i].name, game_state->ships[i].trash_amount);
+        SDL_Color textColor = {0, 0, 0, 255}; //black color
+        SDL_Surface* textSurface = TTF_RenderText_Solid(game_state->font, name_text, textColor);
+        if (textSurface == NULL) {
+            printf("Failed to create text surface: %s\n", TTF_GetError());
+            exit(1);
+        }
+        SDL_Texture* textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
+        if (textTexture == NULL) {
+            printf("Failed to create text texture: %s\n", SDL_GetError());
+            SDL_FreeSurface(textSurface);
+            exit(1);
+        }
+        SDL_Rect textRect;
+        textRect.x = (int)(game_state->ships[i].position.x + game_state->ships[i].radius);
+        textRect.y = (int)(game_state->ships[i].position.y - game_state->ships[i].radius);
+        textRect.w = textSurface->w * 2;  
+        textRect.h = textSurface->h * 2;
+        SDL_FreeSurface(textSurface);
+        SDL_RenderCopy(renderer, textTexture, NULL, &textRect);
+        SDL_DestroyTexture(textTexture);
+    }
+}
+
+void _DrawGameOver(SDL_Renderer* renderer, GameState* game_state) {
+
+    if(game_state->is_game_over == 0) {
+        return;
+    }
+
+    //load font for game over text
+    TTF_Font* font = TTF_OpenFont("arial.ttf", 48);
+    if (font == NULL) {
+        printf("Failed to load font: %s\n", TTF_GetError());
+        exit(1);
+    }
+
+    //create "Game Over" text surface
+    SDL_Color textColor = {255, 0, 0, 255}; //red color
+    SDL_Surface* textSurface = TTF_RenderText_Solid(font, "GAME OVER", textColor);
+    if (textSurface == NULL) {
+        printf("Failed to create text surface: %s\n", TTF_GetError());
+        exit(1);
+    }
+
+    SDL_Texture* textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
+    if (textTexture == NULL) {
+        printf("Failed to create text texture: %s\n", SDL_GetError());
+        SDL_FreeSurface(textSurface);
+        exit(1);
+    }
+
+    SDL_Rect textRect;
+    textRect.x = (game_state->universe_size - textSurface->w) / 2;
+    textRect.y = (game_state->universe_size - textSurface->h) / 2;
+    textRect.w = textSurface->w;
+    textRect.h = textSurface->h;
+    SDL_FreeSurface(textSurface);
+    SDL_RenderCopy(renderer, textTexture, NULL, &textRect);
+    SDL_DestroyTexture(textTexture);
+
+    TTF_CloseFont(font);
+}
+
+void Draw(SDL_Renderer* renderer, GameState* game_state) {
+
+    //set background color to whiteish gray
+    SDL_SetRenderDrawColor(renderer, game_state->bg_r, game_state->bg_g, game_state->bg_b, game_state->bg_a);
+    SDL_RenderClear(renderer);
+
+    //for each of the GameStates object vectors, we make a draw loop.
+    _DrawPlanets(renderer, game_state);
+    _DrawTrash(renderer, game_state);
+    _DrawShips(renderer, game_state);
+    _DrawGameOver(renderer, game_state);
+
+    //present the rendered frame
+    SDL_RenderPresent(renderer);
+}
