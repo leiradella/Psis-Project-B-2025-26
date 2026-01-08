@@ -4,7 +4,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-//#include <string.h>
+#include <string.h>
 //#include <pthread.h>
 
 #include "../universe-server/universe-data.h"
@@ -33,6 +33,87 @@ Uint32 timer_callback(Uint32 interval, void *param){
     return interval;
 }
 */
+typedef struct pthread_joinargs{
+    pthread_t id;
+    void * output;
+}pthread_joinArgs;
+
+typedef struct client_thread_sub_arguements{
+    void *sub_port_str;
+    void *zmq_ctx;
+} client_thread_arguements;
+
+// Wrapper to make pthread_join compatible with your genericfunction signature -- gemini voodoo
+void wrapper_pthread_join(void *arg) {
+    pthread_joinArgs *args = (pthread_joinArgs *)arg;
+    int result = pthread_join(args->id, (void **)args->output);
+    
+    if (result != 0) {
+        printf("Error: pthread_join failed with code %d\n", result);
+    } else {
+        printf("Thread joined successfully.\n");
+    }
+}
+
+void *client_thread_sub(void *arg){
+    client_thread_arguements *data = (client_thread_arguements *)arg;
+    gful_lifo *lastPosition2 = GFUL_INIT;
+    void *zmqSubSocket = safe_zmq_socket(data->zmq_ctx , ZMQ_SUB, &lastPosition2);
+    if (!zmqSubSocket)
+    {
+        printf("Critical error: Failed to create the Sub Socket.\n");
+        return NULL;
+    }
+    int timeout = 1500;
+    int setSocket = zmq_setsockopt(zmqSubSocket, ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
+    if(setSocket){
+        printf("Critical Error: Failed to set timeout to Sub Socket.\n");
+        closeContexts(lastPosition2);
+        return NULL;
+    }
+
+    setSocket = zmq_setsockopt(zmqSubSocket, ZMQ_SUBSCRIBE, "", 0);
+    if(setSocket){
+        printf("Critical Error: Failed to subscribe to server.\n");
+        closeContexts(lastPosition2);
+        return NULL;
+    }
+
+    int connectStatus = zmq_connect(zmqSubSocket, data->sub_port_str);
+    if(connectStatus){
+        printf("Error conecting to sub socket: %s\n", zmq_strerror(errno));
+        closeContexts(lastPosition2);
+        return NULL;
+    }
+    zmq_disconnectArgs args = {zmqSubSocket, data->sub_port_str};
+    createContextDataforClosing((genericfunction *)zmq_disconnect, &args, &lastPosition2);
+
+    zmq_msg_t zmq_sub;
+    createContextDataforClosing((genericfunction *)zmq_msg_close, &zmq_sub, &lastPosition2);
+
+    int status = safe_zmq_msg_recv(zmqSubSocket, &zmq_sub, 0);
+    if(status){
+        printf("Critical failure: Failed to receive Pub Message.\n");
+        closeContexts(lastPosition2);
+        return NULL;
+    }
+
+    UniverseStateMessage *serverPublish = zmq_msg_t_To_UniverseStateMessage(&zmq_sub);
+    if(!serverPublish){
+        printf("Critical failure: Invalid pointer to zmq_msg_t.\n");
+        closeContexts(lastPosition2);
+        return NULL;
+    }
+
+    printf("Received the following data.\n");
+    printf("GameOver: %d\n", serverPublish->game_over);
+    printf("Number of planets: %zu\n", serverPublish->n_planets);
+    
+    printf("Planet name: %s\n", serverPublish->planets[0]->name);
+
+    closeContexts(lastPosition2);
+    return NULL;
+}
 
 /*
 pthread_mutex_t mutex_renderer = PTHREAD_MUTEX_INITIALIZER;
@@ -90,14 +171,14 @@ int main(int argc, char *argv[]){
 //Initialize ZMQ
     void *zmqCtx = safe_zmq_ctx_new(&lastPosition);
 
+    pthread_t thread_id;
+    client_thread_arguements p_args = {sub_port_str, zmqCtx};
+    pthread_create(&thread_id, NULL,client_thread_sub, &p_args);
+
+    pthread_joinArgs joinArgs = {thread_id, NULL};
+    createContextDataforClosing((genericfunction *)wrapper_pthread_join, &joinArgs, &lastPosition);
+
 //Public server address interaction
-    void *zmqSubSocket = safe_zmq_socket(zmqCtx, ZMQ_SUB, &lastPosition);
-    if (!zmqSubSocket)
-    {
-        printf("Critical error: Failed to create the Sub Socket.\n");
-        closeContexts(lastPosition);
-        return -1;
-    }
 
     void *zmqREQSocket = safe_zmq_socket(zmqCtx, ZMQ_REQ, &lastPosition);
     if (!zmqREQSocket)
@@ -107,8 +188,6 @@ int main(int argc, char *argv[]){
         return -1;
     }
 
-
-
     int timeout = 1500;
     int setSocket = zmq_setsockopt(zmqREQSocket, ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
     if(setSocket){
@@ -117,35 +196,15 @@ int main(int argc, char *argv[]){
         return -1;
     }
 
-     setSocket = zmq_setsockopt(zmqSubSocket, ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
-    if(setSocket){
-        printf("Critical Error: Failed to set timeout to Sub Socket.\n");
-        closeContexts(lastPosition);
-        return -1;
-    }
-
-    setSocket = zmq_setsockopt(zmqSubSocket, ZMQ_SUBSCRIBE, "", 0);
-    if(setSocket){
-        printf("Critical Error: Failed to subscribe to server.\n");
-        closeContexts(lastPosition);
-        return -1;
-    }
     
     int connectStatus = zmq_connect(zmqREQSocket, req_port_str);
-
     if(connectStatus){
         printf("Error conecting to req socket: %s\n", zmq_strerror(errno));
         closeContexts(lastPosition);
         return -1;
     }
-
-    connectStatus = zmq_connect(zmqSubSocket, sub_port_str);
-
-        if(connectStatus){
-        printf("Error conecting to sub socket: %s\n", zmq_strerror(errno));
-        closeContexts(lastPosition);
-        return -1;
-    }
+    zmq_disconnectArgs args = {zmqREQSocket, req_port_str};
+    createContextDataforClosing((genericfunction *)zmq_disconnect, &args, &lastPosition);
 
     ClientMessage reqMessage = CLIENT_MESSAGE__INIT;
     int status = client_message_send(zmqREQSocket, reqMessage, &lastPosition);
@@ -172,30 +231,6 @@ int main(int argc, char *argv[]){
     printf("Received the following data.\n");
     printf("Status: %d\n", serverReply->msg_type);
     printf("id: %s\n", serverReply->id);
-
-    
-    zmq_msg_t zmq_sub;
-    status = safe_zmq_msg_recv(zmqSubSocket, &zmq_sub, 0);
-    if(status){
-        printf("Critical failure: Failed to receive Pub Message.\n");
-        closeContexts(lastPosition);
-        return -1;
-    }
-
-    UniverseStateMessage *serverPublish = zmq_msg_t_To_UniverseStateMessage(&zmq_sub);
-    if(!serverPublish){
-        printf("Critical failure: Invalid pointer to zmq_msg_t.\n");
-        closeContexts(lastPosition);
-        return -1;
-    }
-
-    printf("Received the following data.\n");
-    printf("GameOver: %d\n", serverPublish->game_over);
-    printf("Number of planets: %zu\n", serverPublish->n_planets);
-    
-    printf("Planet name: %s\n", serverPublish->planets[0]->name);
-
-
 
 
 /*

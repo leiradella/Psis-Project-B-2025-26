@@ -42,6 +42,10 @@
 
 #define MSGLEN 3
 
+typedef struct zmq_close_args{
+    void *s_;
+    const char *addr;
+} zmq_disconnectArgs;
 
 //The safe class function wrap their namesakes with their respective error
 //handling and with graceful exit data.
