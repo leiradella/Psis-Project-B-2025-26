@@ -8,7 +8,7 @@
 //#include <pthread.h>
 
 
-//#include "../Common/new-Communication.h"
+#include "Communication.h"
 #include "graceful-exit.h"
 
 
@@ -86,7 +86,7 @@ int main(int argc, char *argv[]){
     printf("comunication.serverAddress: %s\n", rep_port_str);
     printf("comunication.serverBroadcast: %s\n", pub_port_str);
     
-/*
+
 //Initialize ZMQ
     void *zmqCtx = safe_zmq_ctx_new(&lastPosition);
 
@@ -98,19 +98,39 @@ int main(int argc, char *argv[]){
         return -1;
     }
 
-    int connectStatus = zmq_connect(zmqREQSocket, (const char*)myConfig.serverAddr);
+    int connectStatus = zmq_connect(zmqREQSocket, rep_port_str);
+
     if(connectStatus){
         printf("Error conecting to public server socket: %s\n", zmq_strerror(errno));
         closeContexts(lastPosition);
         return -1;
     }
+    ClientMessage reqMessage = CLIENT_MESSAGE__INIT;
+    int status = client_message_send(zmqREQSocket, reqMessage, &lastPosition);
 
-    Server *serverRep = join_request(zmqREQSocket);
-    if(!serverRep){
+    if (status == -1)
+    {
+        printf("Critical failure: Failed to send connection Message.\n");
+        closeContexts(lastPosition);
+        exit(1);
+    }
+    
+    zmq_msg_t zmq_rep;
+    createContextDataforClosing((genericfunction *)zmq_msg_close, &zmq_rep, &lastPosition);
+    status = safe_zmq_msg_recv(zmqREQSocket, &zmq_rep, 0);
+
+    if(status){
+        printf("Critical failure: Failed to receive connection Message.\n");
         closeContexts(lastPosition);
         return -1;
     }
 
+    ServerMessage *serverReply = zmq_msg_t_To_server_message(&zmq_rep);
+
+    printf("Received the following data.\n");
+    printf("Status: %d\n", serverReply->msg_type);
+    printf("id: %s\n", serverReply->id);
+    /*
     int dcStatus = zmq_disconnect(zmqREQSocket, (const char*)myConfig.serverAddr);
     if(dcStatus){
         printf("Error discontecting from public server address: %s\n", strerror(errno));
