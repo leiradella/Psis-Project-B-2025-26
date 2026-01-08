@@ -577,3 +577,4 @@ void SendDashboardUpdate(CommunicationManager* comm) {
     
     return;
 }
+

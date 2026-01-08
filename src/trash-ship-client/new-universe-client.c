@@ -3,6 +3,8 @@
 //#include <SDL2/SDL_ttf.h>
 
 #include <stdlib.h>
+#include <stdio.h>
+//#include <string.h>
 //#include <pthread.h>
 
 
@@ -64,16 +66,27 @@ int main(int argc, char *argv[]){
                         &myConfig.universeSize);
     
     config_lookup_int(   &cfg,
-                        "comunication.serverAddress",
+                        "comunication.rep_port",
                         &myConfig.serverAddr);
 
     config_lookup_int(   &cfg,
-                        "comunication.serverBroadcast",
+                        "comunication.pub_port",
                         &myConfig.serverBroadcast);
 
     printf("universe.size: %d\n", myConfig.universeSize);
-    printf("comunication.serverAddress: %d\n", myConfig.serverAddr);
-    printf("comunication.serverBroadcast: %d\n", myConfig.serverBroadcast);
+    printf("comunication.rep_port: %d\n", myConfig.serverAddr);
+    printf("comunication.pub_port: %d\n", myConfig.serverBroadcast);
+    /*
+    //create a string for the ports
+    char rep_port_str[24];
+    char pub_port_str[24];
+
+    snprintf(rep_port_str, sizeof(rep_port_str), "tcp://localhost:%d", myConfig.serverAddr);
+    snprintf(pub_port_str, sizeof(pub_port_str), "tcp://localhost:%d", myConfig.serverBroadcast);
+
+    printf("comunication.serverAddress: %s\n", rep_port_str);
+    printf("comunication.serverBroadcast: %s\n", pub_port_str);
+    */
 /*
 //Initialize ZMQ
     void *zmqCtx = safe_zmq_ctx_new(&lastPosition);
