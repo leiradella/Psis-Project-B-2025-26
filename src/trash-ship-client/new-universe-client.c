@@ -98,6 +98,14 @@ int main(int argc, char *argv[]){
         return -1;
     }
 
+    int timeout = 1500;
+    int setSocket = zmq_setsockopt(zmqREQSocket, ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
+    if(setSocket){
+        printf("Critical Error: Failed to set timeout to Req Socket.\n");
+        closeContexts(lastPosition);
+        return -1;
+    }
+
     int connectStatus = zmq_connect(zmqREQSocket, rep_port_str);
 
     if(connectStatus){
@@ -130,6 +138,8 @@ int main(int argc, char *argv[]){
     printf("Received the following data.\n");
     printf("Status: %d\n", serverReply->msg_type);
     printf("id: %s\n", serverReply->id);
+
+
     /*
     int dcStatus = zmq_disconnect(zmqREQSocket, (const char*)myConfig.serverAddr);
     if(dcStatus){

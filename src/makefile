@@ -17,7 +17,7 @@ all: new-universe-client test-server proto
 new-universe-client: $(addprefix $(CLIENTDIR), $(CLIENTDIRSRC))	$(addprefix $(COMMONDIR), $(CLIENTCOMMONSRC))
 	$(CC) $(CFLAGS)	-o $(CLIENTDIR)$@	\
 	$(addprefix $(CLIENTDIR), $(CLIENTDIRSRC))	\
-	$(PROTOSRC)	\
+	msgB.pb-c.c	\
 	$(CONFIGFLAGS) $(PROTOFLAGS) $(ZMQFLAGS)
 
 test-server:	test-server.c
