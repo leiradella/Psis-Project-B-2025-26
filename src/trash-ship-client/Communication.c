@@ -39,7 +39,7 @@ void safe_zmq_connect(void *s_, const char *addr_, gful_lifo **graceful_lifo){
 
     int status = zmq_connect(s_, addr_);
     if(status){
-        printf("Error initializing ZMQ_Bind: %s\n", zmq_strerror(errno));
+        printf("Error initializing ZMQ_Connect: %s\n", zmq_strerror(errno));
         closeContexts(*graceful_lifo);
         exit(1);
     }
@@ -134,6 +134,25 @@ ServerMessage *zmq_msg_t_To_server_message(zmq_msg_t *zmqMsg){
 
     return serverRep;
 }
+
+UniverseStateMessage *zmq_msg_t_To_UniverseStateMessage(zmq_msg_t *zmqMsg){
+    if (zmqMsg == NULL)
+    {
+        printf("Warning: pointer to zmqMsg in zmq_msg_t_To_UniverseStateMessage was NULL.\n");
+        return NULL;
+    }
+    size_t len = zmq_msg_size(zmqMsg);
+    uint8_t *buff = (uint8_t *)zmq_msg_data(zmqMsg);
+
+    UniverseStateMessage *serverSub = universe_state_message__unpack(NULL, len, buff);
+
+    if(zmq_msg_close(zmqMsg))
+    {
+        printf("Warning: Invalid message sent to zmq_msg_close at zmq_msg_t_To_server_message.\n");
+    }
+
+    return serverSub;}
+
 
 /*
 void initCntrlMsg(uint8_t *msg, uint8_t myID, ClientMessage *proto_msg){

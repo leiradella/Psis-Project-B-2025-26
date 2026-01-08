@@ -66,6 +66,8 @@ int client_message_send(void *s_, ClientMessage sendMessage, gful_lifo **gracefu
 
 ServerMessage *zmq_msg_t_To_server_message(zmq_msg_t *zmqMsg);
 
+UniverseStateMessage *zmq_msg_t_To_UniverseStateMessage(zmq_msg_t *zmqMsg);
+
 
 void initCntrlMsg(uint8_t *msg, uint8_t myID, ClientMessage *proto_msg);
 

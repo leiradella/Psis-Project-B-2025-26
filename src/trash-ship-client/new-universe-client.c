@@ -7,7 +7,7 @@
 //#include <string.h>
 //#include <pthread.h>
 
-
+#include "../universe-server/universe-data.h"
 #include "Communication.h"
 #include "graceful-exit.h"
 
@@ -77,26 +77,37 @@ int main(int argc, char *argv[]){
 
     
     //create a string for the ports
-    char rep_port_str[24];
-    char pub_port_str[24];
+    char req_port_str[24];
+    char sub_port_str[24];
 
-    snprintf(rep_port_str, sizeof(rep_port_str), "tcp://localhost:%d", myConfig.serverAddr);
-    snprintf(pub_port_str, sizeof(pub_port_str), "tcp://localhost:%d", myConfig.serverBroadcast);
+    snprintf(req_port_str, sizeof(req_port_str), "tcp://localhost:%d", myConfig.serverAddr);
+    snprintf(sub_port_str, sizeof(sub_port_str), "tcp://localhost:%d", myConfig.serverBroadcast);
 
-    printf("comunication.serverAddress: %s\n", rep_port_str);
-    printf("comunication.serverBroadcast: %s\n", pub_port_str);
+    printf("comunication.serverAddress: %s\n", req_port_str);
+    printf("comunication.serverBroadcast: %s\n", sub_port_str);
     
 
 //Initialize ZMQ
     void *zmqCtx = safe_zmq_ctx_new(&lastPosition);
 
 //Public server address interaction
-    void *zmqREQSocket = safe_zmq_socket(zmqCtx, ZMQ_REQ, &lastPosition);
-    if (!zmqREQSocket)
+    void *zmqSubSocket = safe_zmq_socket(zmqCtx, ZMQ_SUB, &lastPosition);
+    if (!zmqSubSocket)
     {
+        printf("Critical error: Failed to create the Sub Socket.\n");
         closeContexts(lastPosition);
         return -1;
     }
+
+    void *zmqREQSocket = safe_zmq_socket(zmqCtx, ZMQ_REQ, &lastPosition);
+    if (!zmqREQSocket)
+    {
+        printf("Critical error: Failed to create the Req Socket.\n");
+        closeContexts(lastPosition);
+        return -1;
+    }
+
+
 
     int timeout = 1500;
     int setSocket = zmq_setsockopt(zmqREQSocket, ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
@@ -106,13 +117,36 @@ int main(int argc, char *argv[]){
         return -1;
     }
 
-    int connectStatus = zmq_connect(zmqREQSocket, rep_port_str);
-
-    if(connectStatus){
-        printf("Error conecting to public server socket: %s\n", zmq_strerror(errno));
+     setSocket = zmq_setsockopt(zmqSubSocket, ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
+    if(setSocket){
+        printf("Critical Error: Failed to set timeout to Sub Socket.\n");
         closeContexts(lastPosition);
         return -1;
     }
+
+    setSocket = zmq_setsockopt(zmqSubSocket, ZMQ_SUBSCRIBE, "", 0);
+    if(setSocket){
+        printf("Critical Error: Failed to subscribe to server.\n");
+        closeContexts(lastPosition);
+        return -1;
+    }
+    
+    int connectStatus = zmq_connect(zmqREQSocket, req_port_str);
+
+    if(connectStatus){
+        printf("Error conecting to req socket: %s\n", zmq_strerror(errno));
+        closeContexts(lastPosition);
+        return -1;
+    }
+
+    connectStatus = zmq_connect(zmqSubSocket, sub_port_str);
+
+        if(connectStatus){
+        printf("Error conecting to sub socket: %s\n", zmq_strerror(errno));
+        closeContexts(lastPosition);
+        return -1;
+    }
+
     ClientMessage reqMessage = CLIENT_MESSAGE__INIT;
     int status = client_message_send(zmqREQSocket, reqMessage, &lastPosition);
 
@@ -139,8 +173,32 @@ int main(int argc, char *argv[]){
     printf("Status: %d\n", serverReply->msg_type);
     printf("id: %s\n", serverReply->id);
 
+    
+    zmq_msg_t zmq_sub;
+    status = safe_zmq_msg_recv(zmqSubSocket, &zmq_sub, 0);
+    if(status){
+        printf("Critical failure: Failed to receive Pub Message.\n");
+        closeContexts(lastPosition);
+        return -1;
+    }
 
-    /*
+    UniverseStateMessage *serverPublish = zmq_msg_t_To_UniverseStateMessage(&zmq_sub);
+    if(!serverPublish){
+        printf("Critical failure: Invalid pointer to zmq_msg_t.\n");
+        closeContexts(lastPosition);
+        return -1;
+    }
+
+    printf("Received the following data.\n");
+    printf("GameOver: %d\n", serverPublish->game_over);
+    printf("Number of planets: %zu\n", serverPublish->n_planets);
+    
+    printf("Planet name: %s\n", serverPublish->planets[0]->name);
+
+
+
+
+/*
     int dcStatus = zmq_disconnect(zmqREQSocket, (const char*)myConfig.serverAddr);
     if(dcStatus){
         printf("Error discontecting from public server address: %s\n", strerror(errno));
