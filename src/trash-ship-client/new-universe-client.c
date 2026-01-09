@@ -177,6 +177,10 @@ void *client_thread_sub(void *arg)
                 GameData->n_trashes = (int)serverPublish->n_trash_pieces;
                 GameData->recycler_planet_index = serverPublish->planets[0]->recycler_index;
 
+                if (GameData->planets)
+                {
+                    free(GameData->planets);
+                }
                 GameData->planets = (Planet *)malloc(sizeof(Planet) * serverPublish->n_planets);
                 for (int i = 0; i < (int)serverPublish->n_planets; i++)
                 {
@@ -194,6 +198,10 @@ void *client_thread_sub(void *arg)
                     GameData->planets[i].position.y = serverPublish->planets[i]->y;
                 }
 
+                if (GameData->ships)
+                {
+                    free(GameData->ships);
+                }
                 GameData->ships = (Ship *)malloc(sizeof(Ship) * serverPublish->n_ships);
                 for (int i = 0; i < (int)serverPublish->n_ships; i++)
                 {
@@ -212,6 +220,10 @@ void *client_thread_sub(void *arg)
                     GameData->ships[i].radius = SHIP_RADIUS;
                 }
 
+                if (GameData->trashes)
+                {
+                    free(GameData->trashes);
+                }
                 GameData->trashes = (Trash *)malloc(sizeof(Trash) * serverPublish->n_trash_pieces);
                 for (int i = 0; i < (int)serverPublish->n_trash_pieces; i++)
                 {
@@ -391,7 +403,7 @@ int main(int argc, char *argv[])
 
     // Create window
     SDL_Window *window = SDL_CreateWindow(
-        "Universe Simulator",
+        "Universe Client",
         SDL_WINDOWPOS_CENTERED,
         SDL_WINDOWPOS_CENTERED,
         myConfig.universeSize,
