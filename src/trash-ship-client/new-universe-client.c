@@ -37,6 +37,12 @@ Uint32 timer_callback(Uint32 interval, void *param)
     return interval;
 }
 
+typedef struct pthread_joinargs
+{
+    pthread_t id;
+    void *output;
+} pthread_joinArgs;
+
 typedef struct SDL_RemoveTimer_args
 {
     SDL_TimerID timer;

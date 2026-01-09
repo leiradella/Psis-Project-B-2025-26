@@ -47,12 +47,6 @@ typedef struct zmq_close_args{
     const char *addr;
 } zmq_disconnectArgs;
 
-typedef struct pthread_joinargs
-{
-    pthread_t id;
-    void *output;
-} pthread_joinArgs;
-
 typedef struct free_unpacked_argsstruct
 {
     ServerMessage *message;
