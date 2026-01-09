@@ -33,6 +33,7 @@ Uint32 timer_callback(Uint32 interval, void *param){
     return interval;
 }
 */
+
 typedef struct pthread_joinargs{
     pthread_t id;
     void * output;
@@ -41,9 +42,12 @@ typedef struct pthread_joinargs{
 typedef struct client_thread_sub_arguements{
     void *sub_port_str;
     void *zmq_ctx;
+    GameState *sharedData;
 } client_thread_arguements;
 
 // Wrapper to make pthread_join compatible with your genericfunction signature -- gemini voodoo
+// Nota para o professor como decidimos não retirar o pedantic e não queríamos uma nova linha 
+//no if do graceful esta função permite a correta execução do código.
 void wrapper_pthread_join(void *arg) {
     pthread_joinArgs *args = (pthread_joinArgs *)arg;
     int result = pthread_join(args->id, (void **)args->output);
@@ -57,7 +61,9 @@ void wrapper_pthread_join(void *arg) {
 
 void *client_thread_sub(void *arg){
     client_thread_arguements *data = (client_thread_arguements *)arg;
+    GameState *GameData = data->sharedData;
     gful_lifo *lastPosition2 = GFUL_INIT;
+
     void *zmqSubSocket = safe_zmq_socket(data->zmq_ctx , ZMQ_SUB, &lastPosition2);
     if (!zmqSubSocket)
     {
@@ -105,11 +111,63 @@ void *client_thread_sub(void *arg){
         return NULL;
     }
 
+    GameData->bg_a = serverPublish->bg_a;
+    GameData->bg_b = serverPublish->bg_b;
+    GameData->bg_g = serverPublish->bg_g;
+    GameData->bg_r = serverPublish->bg_r;
+    GameData->is_game_over = serverPublish->game_over;
+    GameData->n_planets = (int)serverPublish->n_planets;
+    GameData->n_ships = (int)serverPublish->n_ships;
+    GameData->n_trashes = (int)serverPublish->n_trash_pieces;
+    GameData->recycler_planet_index = serverPublish->planets[0]->recycler_index;
+
+    GameData->planets = (Planet *)malloc(sizeof(Planet)* serverPublish->n_planets);
+    for(int i=0; i < (int)serverPublish->n_planets ;i++)
+    {
+        int n = sscanf(serverPublish->planets[i]->name, "%c%d", &GameData->planets[i].name, &GameData->planets[i].trash_amount);
+
+        if (n != 2)
+        {
+            // Unsuccessfully extracted both values
+            printf("Warning: Failed to parse planet %d name.\n", i);
+            GameData->planets[i].name = 'A';
+            GameData->planets[i].trash_amount = 0;
+        }
+
+        GameData->planets[i].position.x = serverPublish->planets[i]->x;
+        GameData->planets[i].position.y = serverPublish->planets[i]->y;
+    }
+
+    GameData->ships = (Ship *)malloc(sizeof(Ship)* serverPublish->n_ships);
+    for(int i=0; i < (int)serverPublish->n_ships ;i++)
+    {
+        int n = sscanf(serverPublish->ships[i]->name, "%c%d", &GameData->ships[i].name, &GameData->ships[i].trash_amount);
+
+        if (n != 2)
+        {
+            // Unsuccessfully extracted both values
+            printf("Warning: Failed to parse ship %d name.\n", i);
+            GameData->ships[i].name = 'A';
+            GameData->ships[i].trash_amount = 0;
+        }
+
+        GameData->ships[i].position.x = serverPublish->ships[i]->x;
+        GameData->ships[i].position.y = serverPublish->ships[i]->y;
+    }
+
+    GameData->trashes = (Trash *)malloc(sizeof(Trash)* serverPublish->n_trash_pieces);
+    for(int i=0; i < (int)serverPublish->n_trash_pieces ;i++)
+    {
+        GameData->trashes[i].position.x = serverPublish->trash_pieces[i]->x;
+        GameData->trashes[i].position.y = serverPublish->trash_pieces[i]->y;
+    }
+
+        /*
     printf("Received the following data.\n");
     printf("GameOver: %d\n", serverPublish->game_over);
     printf("Number of planets: %zu\n", serverPublish->n_planets);
-    
     printf("Planet name: %s\n", serverPublish->planets[0]->name);
+    */
 
     closeContexts(lastPosition2);
     return NULL;
@@ -172,7 +230,8 @@ int main(int argc, char *argv[]){
     void *zmqCtx = safe_zmq_ctx_new(&lastPosition);
 
     pthread_t thread_id;
-    client_thread_arguements p_args = {sub_port_str, zmqCtx};
+    GameState *gameData = (GameState *)malloc(sizeof(GameState));
+    client_thread_arguements p_args = {sub_port_str, zmqCtx, gameData};
     pthread_create(&thread_id, NULL,client_thread_sub, &p_args);
 
     pthread_joinArgs joinArgs = {thread_id, NULL};
@@ -371,6 +430,10 @@ int main(int argc, char *argv[]){
     server__free_unpacked(serverRep,NULL);
     */
     closeContexts(lastPosition);
-
+    printf("%c\n", gameData->ships->name);
+    free(gameData->planets);
+    free(gameData->ships);
+    free(gameData->trashes);
+    free(gameData);
     return 0;
 }
