@@ -514,7 +514,7 @@ int main(int argc, char *argv[])
         switch (SDL_tempEvent.type)
         {
         case SDL_QUIT:
-            // end = 1;
+            end = 1;
             break;
 
         case SDL_USEREVENT:
@@ -527,7 +527,7 @@ int main(int argc, char *argv[])
                     printf("Ship name:%c\n", gameData->ships[0].name);
                     pthread_mutex_unlock(&mutex_renderer);
                     //SDL_RenderPresent(renderer);
-                    end = 1;
+                    //end = 1;
                 }
             }
             break;
@@ -557,7 +557,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    SDL_Delay(20000);
+    //SDL_Delay(20000);
     // Do Stuff
     closeContexts(lastPosition);
     free(gameData->planets);
