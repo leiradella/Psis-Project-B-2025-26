@@ -528,7 +528,7 @@ const ProtobufCMessageDescriptor server_message__descriptor =
   (ProtobufCMessageInit) server_message__init,
   NULL,NULL,NULL    /* reserved[123] */
 };
-static const ProtobufCFieldDescriptor ship_struct__field_descriptors[4] =
+static const ProtobufCFieldDescriptor ship_struct__field_descriptors[5] =
 {
   {
     "name",
@@ -578,9 +578,22 @@ static const ProtobufCFieldDescriptor ship_struct__field_descriptors[4] =
     0,             /* flags */
     0,NULL,NULL    /* reserved1,reserved2, etc */
   },
+  {
+    "enable",
+    5,
+    PROTOBUF_C_LABEL_REQUIRED,
+    PROTOBUF_C_TYPE_BOOL,
+    0,   /* quantifier_offset */
+    offsetof(ShipStruct, enable),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
 };
 static const unsigned ship_struct__field_indices_by_name[] = {
   3,   /* field[3] = angle */
+  4,   /* field[4] = enable */
   0,   /* field[0] = name */
   1,   /* field[1] = x */
   2,   /* field[2] = y */
@@ -588,7 +601,7 @@ static const unsigned ship_struct__field_indices_by_name[] = {
 static const ProtobufCIntRange ship_struct__number_ranges[1 + 1] =
 {
   { 1, 0 },
-  { 0, 4 }
+  { 0, 5 }
 };
 const ProtobufCMessageDescriptor ship_struct__descriptor =
 {
@@ -598,7 +611,7 @@ const ProtobufCMessageDescriptor ship_struct__descriptor =
   "ShipStruct",
   "",
   sizeof(ShipStruct),
-  4,
+  5,
   ship_struct__field_descriptors,
   ship_struct__field_indices_by_name,
   1,  ship_struct__number_ranges,

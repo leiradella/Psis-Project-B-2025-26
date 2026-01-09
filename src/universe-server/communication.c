@@ -442,7 +442,7 @@ void SendUniverseState(CommunicationManager* comm) {
         char name_buf[32];
         snprintf(name_buf, sizeof(name_buf), "%c%d", comm->snapshot->ships[i].name, comm->snapshot->ships[i].trash_amount);
         universe_msg.ships[i]->name = strdup(name_buf);
-
+        universe_msg.ships[i]->enable = comm->snapshot->ships[i].enabled;
         universe_msg.ships[i]->x = comm->snapshot->ships[i].position.x;
         universe_msg.ships[i]->y = comm->snapshot->ships[i].position.y;
         universe_msg.ships[i]->angle = comm->snapshot->ships[i].angle;

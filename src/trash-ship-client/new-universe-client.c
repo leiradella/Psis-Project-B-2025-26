@@ -21,6 +21,8 @@ typedef struct config
 
 pthread_mutex_t mutex_renderer = PTHREAD_MUTEX_INITIALIZER;
 
+pthread_mutex_t fake_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 Uint32 timer_callback(Uint32 interval, void *param)
 {
     (void)param;
@@ -59,12 +61,12 @@ typedef struct free_unpacked_args
 typedef struct SDL_RemoveTimer_args
 {
     SDL_TimerID timer;
-}SDL_RemoveTimer_args;
+} SDL_RemoveTimer_args;
 
 typedef struct TTF_CloseFont_args
 {
     TTF_Font *font;
-}TTF_CloseFont_args;
+} TTF_CloseFont_args;
 // Wrapper to make pthread_join compatible with your genericfunction signature -- gemini voodoo
 // Nota para o professor como decidimos não retirar o pedantic e não queríamos uma nova linha
 // no if do graceful esta função permite a correta execução do código.
@@ -149,7 +151,7 @@ void *client_thread_sub(void *arg)
 
     while (!(*data->end))
     {
-        //printf("%d\n", *data->end);
+        // printf("%d\n", *data->end);
         int status = safe_zmq_msg_recv(zmqSubSocket, &zmq_sub, 0);
 
         if (status)
@@ -214,7 +216,7 @@ void *client_thread_sub(void *arg)
                         GameData->ships[i].name = 'A';
                         GameData->ships[i].trash_amount = 0;
                     }
-
+                    GameData->ships[i].enabled = serverPublish->ships[i]->enable;
                     GameData->ships[i].position.x = serverPublish->ships[i]->x;
                     GameData->ships[i].position.y = serverPublish->ships[i]->y;
                     GameData->ships[i].radius = SHIP_RADIUS;
@@ -299,6 +301,7 @@ int main(int argc, char *argv[])
 
     pthread_t thread_id;
     GameState *gameData = (GameState *)malloc(sizeof(GameState));
+    gameData->mutex_enable = fake_mutex;
     volatile int end = 0;
     client_thread_arguements p_args = {sub_port_str, zmqCtx, gameData, &end};
     pthread_create(&thread_id, NULL, client_thread_sub, &p_args);
@@ -388,9 +391,10 @@ int main(int argc, char *argv[])
     }
     createContextDataforClosing((genericfunction *)TTF_Quit, NULL, &lastPosition);
 
-    //load font
-    TTF_Font* font = TTF_OpenFont("./universe-server/arial.ttf", 12);
-    if (font == NULL) {
+    // load font
+    TTF_Font *font = TTF_OpenFont("./universe-server/arial.ttf", 12);
+    if (font == NULL)
+    {
         printf("Failed to load font: %s\n", TTF_GetError());
         end = 1;
         closeContexts(lastPosition);
@@ -526,6 +530,32 @@ int main(int argc, char *argv[])
         switch (SDL_tempEvent.type)
         {
         case SDL_QUIT:
+            printf("Quit Event\n");
+            reqMessage.id = strdup(serverReply->id);
+            reqMessage.msg_type = CLIENT_MESSAGE_TYPE__DISCONNECT;
+            int status = client_message_send(zmqREQSocket, reqMessage, &lastPosition);
+
+            if (status == -1)
+            {
+                printf("Warning: Failed to send disconnect Message.\n");
+            }
+
+            status = safe_zmq_msg_recv(zmqREQSocket, &zmq_rep, 0);
+
+            if (status)
+            {
+                printf("Warning: Failed to receive disconnect Rep.\n");
+            }
+
+            ServerMessage *serverReplyDc = zmq_msg_t_To_server_message(&zmq_rep);
+            free_unpacked_args serverMessageArgs = {serverReplyDc, NULL};
+            createContextDataforClosing((genericfunction *)wrapper_server_message_free_unpacked, (void *)&serverMessageArgs, &lastPosition);
+
+            printf("Received the following data.\n");
+            printf("Status: %d\n", serverReplyDc->msg_type);
+            printf("id: %s\n", serverReplyDc->id);
+
+            closeSingleContext(&lastPosition);
             end = 1;
             break;
 
@@ -536,10 +566,9 @@ int main(int argc, char *argv[])
                 {
                     pthread_mutex_lock(&mutex_renderer);
                     Draw(renderer, gameData);
-                    printf("Ship name:%c\n", gameData->ships[0].name);
+                    //printf("Ship name:%c\n", gameData->ships[0].name);
                     pthread_mutex_unlock(&mutex_renderer);
-                    //SDL_RenderPresent(renderer);
-                    //end = 1;
+                    // end = 1;
                 }
             }
             break;
@@ -567,10 +596,11 @@ int main(int argc, char *argv[])
         default:
             break;
         }
+        client_message__init(&reqMessage);
     }
 
-    //SDL_Delay(20000);
-    // Do Stuff
+    // SDL_Delay(20000);
+    //  Do Stuff
     closeContexts(lastPosition);
     free(gameData->planets);
     free(gameData->ships);

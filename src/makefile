@@ -26,9 +26,8 @@ test-server:	test-server.c
 	$@.c 
 
 .PHONY: proto 
-proto:  $(PROTOOUT)
-	$(PROTOOUT): msgB.proto
-	protoc --c_out=. $<
+proto:  msgB.proto
+	protoc --c_out=. msgB.proto
 
 clean: clean_test-server clean_new-universe-client clean_proto 
 
