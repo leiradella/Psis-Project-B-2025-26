@@ -62,6 +62,7 @@ message ShipStruct{
     required float x = 2;
     required float y = 3;
     required float angle = 4;
+    required bool enable = 5;
 }
 
 //clients need to know the position of each trash piece
