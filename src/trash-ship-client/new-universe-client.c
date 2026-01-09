@@ -530,7 +530,6 @@ int main(int argc, char *argv[])
         switch (SDL_tempEvent.type)
         {
         case SDL_QUIT:
-            printf("Quit Event\n");
             reqMessage.id = strdup(serverReply->id);
             reqMessage.msg_type = CLIENT_MESSAGE_TYPE__DISCONNECT;
             int status = client_message_send(zmqREQSocket, reqMessage, &lastPosition);
@@ -566,7 +565,7 @@ int main(int argc, char *argv[])
                 {
                     pthread_mutex_lock(&mutex_renderer);
                     Draw(renderer, gameData);
-                    //printf("Ship name:%c\n", gameData->ships[0].name);
+                    // printf("Ship name:%c\n", gameData->ships[0].name);
                     pthread_mutex_unlock(&mutex_renderer);
                     // end = 1;
                 }
@@ -574,37 +573,100 @@ int main(int argc, char *argv[])
             break;
 
         case SDL_KEYDOWN:
-        case SDL_KEYUP:
+            reqMessage.msg_type = CLIENT_MESSAGE_TYPE__MOVE;
             switch (SDL_tempEvent.key.keysym.scancode)
             {
             case SDL_SCANCODE_W:
             case SDL_SCANCODE_UP:
+                reqMessage.wkeydown = 1;
+                break;
             case SDL_SCANCODE_A:
             case SDL_SCANCODE_LEFT:
-            case SDL_SCANCODE_S:
-            case SDL_SCANCODE_DOWN:
-            case SDL_SCANCODE_D:
-            case SDL_SCANCODE_RIGHT:
-                // com_ReqClient(zmqREQSocket, serverRep->key, SDL_tempEvent.type, SDL_tempEvent.key.keysym.scancode);
+                reqMessage.akeydown = 1;
                 break;
 
+            case SDL_SCANCODE_S:
+            case SDL_SCANCODE_DOWN:
+                reqMessage.skeydown = 1;
+                break;
+
+            case SDL_SCANCODE_D:
+            case SDL_SCANCODE_RIGHT:
+                reqMessage.dkeydown = 1;
+                break;
             default:
                 break;
             }
             break;
 
+        case SDL_KEYUP:
+            reqMessage.msg_type = CLIENT_MESSAGE_TYPE__MOVE;
+            switch (SDL_tempEvent.key.keysym.scancode)
+            {
+            case SDL_SCANCODE_W:
+            case SDL_SCANCODE_UP:
+                reqMessage.wkeyup = 1;
+                break;
+            case SDL_SCANCODE_A:
+            case SDL_SCANCODE_LEFT:
+                reqMessage.akeyup = 1;
+                break;
+
+            case SDL_SCANCODE_S:
+            case SDL_SCANCODE_DOWN:
+                reqMessage.skeyup = 1;
+                break;
+
+            case SDL_SCANCODE_D:
+            case SDL_SCANCODE_RIGHT:
+                reqMessage.dkeyup = 1;
+                break;
+
+            default:
+                break;
+            }
         default:
             break;
         }
-        client_message__init(&reqMessage);
+        printf("%d", reqMessage.msg_type);
+        if(reqMessage.msg_type == CLIENT_MESSAGE_TYPE__DISCONNECT || reqMessage.msg_type == CLIENT_MESSAGE_TYPE__MOVE)
+        {
+            reqMessage.id = strdup(serverReply->id);
+            reqMessage.msg_type = CLIENT_MESSAGE_TYPE__MOVE;
+            int status = client_message_send(zmqREQSocket, reqMessage, &lastPosition);
+
+            if (status == -1)
+            {
+                printf("Warning: Failed to send disconnect Message.\n");
+            }
+
+            status = safe_zmq_msg_recv(zmqREQSocket, &zmq_rep, 0);
+
+            if (status)
+            {
+                printf("Warning: Failed to receive disconnect Rep.\n");
+            }
+
+            ServerMessage *serverReplyDc = zmq_msg_t_To_server_message(&zmq_rep);
+            free_unpacked_args serverMessageArgs = {serverReplyDc, NULL};
+            createContextDataforClosing((genericfunction *)wrapper_server_message_free_unpacked, (void *)&serverMessageArgs, &lastPosition);
+
+            printf("Received the following data.\n");
+            printf("Status: %d\n", serverReplyDc->msg_type);
+            printf("id: %s\n", serverReplyDc->id);
+
+            closeSingleContext(&lastPosition);
+
+            client_message__init(&reqMessage);
+        }
     }
 
-    // SDL_Delay(20000);
-    //  Do Stuff
-    closeContexts(lastPosition);
-    free(gameData->planets);
-    free(gameData->ships);
-    free(gameData->trashes);
-    free(gameData);
-    return 0;
+// SDL_Delay(20000);
+//  Do Stuff
+closeContexts(lastPosition);
+free(gameData->planets);
+free(gameData->ships);
+free(gameData->trashes);
+free(gameData);
+return 0;
 }
