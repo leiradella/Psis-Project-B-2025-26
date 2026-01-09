@@ -219,6 +219,7 @@ void *client_thread_sub(void *arg)
                     GameData->ships[i].enabled = serverPublish->ships[i]->enable;
                     GameData->ships[i].position.x = serverPublish->ships[i]->x;
                     GameData->ships[i].position.y = serverPublish->ships[i]->y;
+                    GameData->ships[i].angle = serverPublish->ships[i]->angle;
                     GameData->ships[i].radius = SHIP_RADIUS;
                 }
 
