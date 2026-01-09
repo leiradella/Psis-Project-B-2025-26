@@ -7,6 +7,7 @@
 #include <string.h>
 //#include <pthread.h>
 
+#include "../universe-server/display.h"
 #include "../universe-server/universe-data.h"
 #include "Communication.h"
 #include "graceful-exit.h"
@@ -17,6 +18,8 @@ typedef struct config{
     int serverAddr;
     int serverBroadcast;
 }config;
+
+pthread_mutex_t mutex_renderer = PTHREAD_MUTEX_INITIALIZER;
 
 /*
 Uint32 timer_callback(Uint32 interval, void *param){
@@ -34,29 +37,48 @@ Uint32 timer_callback(Uint32 interval, void *param){
 }
 */
 
-typedef struct pthread_joinargs{
+typedef struct pthread_joinargs
+{
     pthread_t id;
-    void * output;
-}pthread_joinArgs;
+    void *output;
+} pthread_joinArgs;
 
-typedef struct client_thread_sub_arguements{
+typedef struct client_thread_sub_arguements
+{
     void *sub_port_str;
     void *zmq_ctx;
     GameState *sharedData;
+    volatile int *end;
 } client_thread_arguements;
+
+typedef struct free_unpacked_args
+{
+    ServerMessage *message;
+    ProtobufCAllocator *allocator;
+} free_unpacked_args;
 
 // Wrapper to make pthread_join compatible with your genericfunction signature -- gemini voodoo
 // Nota para o professor como decidimos não retirar o pedantic e não queríamos uma nova linha 
 //no if do graceful esta função permite a correta execução do código.
-void wrapper_pthread_join(void *arg) {
-    pthread_joinArgs *args = (pthread_joinArgs *)arg;
-    int result = pthread_join(args->id, (void **)args->output);
-    
-    if (result != 0) {
+void wrapper_pthread_join(void *arg)
+{
+    pthread_joinArgs *Data = (pthread_joinArgs *)arg;
+    int result = pthread_join(Data->id, (void **)Data->output);
+
+    if (result != 0)
+    {
         printf("Error: pthread_join failed with code %d\n", result);
-    } else {
+    }
+    else
+    {
         printf("Thread joined successfully.\n");
     }
+}
+
+void wrapper_server_message_free_unpacked(void *arg)
+{
+    free_unpacked_args *Data = (free_unpacked_args *)arg;
+    server_message__free_unpacked(Data->message, Data->allocator);
 }
 
 void *client_thread_sub(void *arg){
@@ -68,12 +90,17 @@ void *client_thread_sub(void *arg){
     if (!zmqSubSocket)
     {
         printf("Critical error: Failed to create the Sub Socket.\n");
+        *data->end = 1;
         return NULL;
     }
+    zmq_msg_t zmq_sub;
+    createContextDataforClosing((genericfunction *)zmq_msg_close, &zmq_sub, &lastPosition2);
+
     int timeout = 1500;
     int setSocket = zmq_setsockopt(zmqSubSocket, ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
     if(setSocket){
         printf("Critical Error: Failed to set timeout to Sub Socket.\n");
+        *data->end = 1;
         closeContexts(lastPosition2);
         return NULL;
     }
@@ -81,101 +108,111 @@ void *client_thread_sub(void *arg){
     setSocket = zmq_setsockopt(zmqSubSocket, ZMQ_SUBSCRIBE, "", 0);
     if(setSocket){
         printf("Critical Error: Failed to subscribe to server.\n");
+        *data->end = 1;
         closeContexts(lastPosition2);
         return NULL;
     }
 
     int connectStatus = zmq_connect(zmqSubSocket, data->sub_port_str);
     if(connectStatus){
-        printf("Error conecting to sub socket: %s\n", zmq_strerror(errno));
+        printf("Critical Error: Failed conecting to sub socket: %s\n", zmq_strerror(errno));
+        *data->end = 1;
         closeContexts(lastPosition2);
         return NULL;
     }
     zmq_disconnectArgs args = {zmqSubSocket, data->sub_port_str};
     createContextDataforClosing((genericfunction *)zmq_disconnect, &args, &lastPosition2);
 
-    zmq_msg_t zmq_sub;
-    createContextDataforClosing((genericfunction *)zmq_msg_close, &zmq_sub, &lastPosition2);
 
-    int status = safe_zmq_msg_recv(zmqSubSocket, &zmq_sub, 0);
-    if(status){
-        printf("Critical failure: Failed to receive Pub Message.\n");
-        closeContexts(lastPosition2);
-        return NULL;
-    }
-
-    UniverseStateMessage *serverPublish = zmq_msg_t_To_UniverseStateMessage(&zmq_sub);
-    if(!serverPublish){
-        printf("Critical failure: Invalid pointer to zmq_msg_t.\n");
-        closeContexts(lastPosition2);
-        return NULL;
-    }
-
-    GameData->bg_a = serverPublish->bg_a;
-    GameData->bg_b = serverPublish->bg_b;
-    GameData->bg_g = serverPublish->bg_g;
-    GameData->bg_r = serverPublish->bg_r;
-    GameData->is_game_over = serverPublish->game_over;
-    GameData->n_planets = (int)serverPublish->n_planets;
-    GameData->n_ships = (int)serverPublish->n_ships;
-    GameData->n_trashes = (int)serverPublish->n_trash_pieces;
-    GameData->recycler_planet_index = serverPublish->planets[0]->recycler_index;
-
-    GameData->planets = (Planet *)malloc(sizeof(Planet)* serverPublish->n_planets);
-    for(int i=0; i < (int)serverPublish->n_planets ;i++)
+    while (!(*data->end))
     {
-        int n = sscanf(serverPublish->planets[i]->name, "%c%d", &GameData->planets[i].name, &GameData->planets[i].trash_amount);
+        printf("%d\n",*data->end);
+        printf("checkpoint thread1.\n");
+        int status = safe_zmq_msg_recv(zmqSubSocket, &zmq_sub, 0);
+        printf("checkpoint thread2.\n");
 
-        if (n != 2)
+        if (status)
         {
-            // Unsuccessfully extracted both values
-            printf("Warning: Failed to parse planet %d name.\n", i);
-            GameData->planets[i].name = 'A';
-            GameData->planets[i].trash_amount = 0;
+            printf("Warning: Message timeout.\n");
         }
-
-        GameData->planets[i].position.x = serverPublish->planets[i]->x;
-        GameData->planets[i].position.y = serverPublish->planets[i]->y;
-    }
-
-    GameData->ships = (Ship *)malloc(sizeof(Ship)* serverPublish->n_ships);
-    for(int i=0; i < (int)serverPublish->n_ships ;i++)
-    {
-        int n = sscanf(serverPublish->ships[i]->name, "%c%d", &GameData->ships[i].name, &GameData->ships[i].trash_amount);
-
-        if (n != 2)
+        else
         {
-            // Unsuccessfully extracted both values
-            printf("Warning: Failed to parse ship %d name.\n", i);
-            GameData->ships[i].name = 'A';
-            GameData->ships[i].trash_amount = 0;
+            UniverseStateMessage *serverPublish = zmq_msg_t_To_UniverseStateMessage(&zmq_sub);
+            if (!serverPublish)
+            {
+                printf("Warning: Invalid pointer to zmq_msg_t.\n");
+            }
+            else
+            {
+                pthread_mutex_lock(&mutex_renderer);
+
+                GameData->bg_a = serverPublish->bg_a;
+                GameData->bg_b = serverPublish->bg_b;
+                GameData->bg_g = serverPublish->bg_g;
+                GameData->bg_r = serverPublish->bg_r;
+                GameData->is_game_over = serverPublish->game_over;
+                GameData->n_planets = (int)serverPublish->n_planets;
+                GameData->n_ships = (int)serverPublish->n_ships;
+                GameData->n_trashes = (int)serverPublish->n_trash_pieces;
+                GameData->recycler_planet_index = serverPublish->planets[0]->recycler_index;
+
+                GameData->planets = (Planet *)malloc(sizeof(Planet) * serverPublish->n_planets);
+                for (int i = 0; i < (int)serverPublish->n_planets; i++)
+                {
+                    int n = sscanf(serverPublish->planets[i]->name, "%c%d", &GameData->planets[i].name, &GameData->planets[i].trash_amount);
+
+                    if (n != 2)
+                    {
+                        // Unsuccessfully extracted both values
+                        printf("Warning: Failed to parse planet %d name.\n", i);
+                        GameData->planets[i].name = 'A';
+                        GameData->planets[i].trash_amount = 0;
+                    }
+
+                    GameData->planets[i].position.x = serverPublish->planets[i]->x;
+                    GameData->planets[i].position.y = serverPublish->planets[i]->y;
+                }
+
+                GameData->ships = (Ship *)malloc(sizeof(Ship) * serverPublish->n_ships);
+                for (int i = 0; i < (int)serverPublish->n_ships; i++)
+                {
+                    int n = sscanf(serverPublish->ships[i]->name, "%c%d", &GameData->ships[i].name, &GameData->ships[i].trash_amount);
+
+                    if (n != 2)
+                    {
+                        // Unsuccessfully extracted both values
+                        printf("Warning: Failed to parse ship %d name.\n", i);
+                        GameData->ships[i].name = 'A';
+                        GameData->ships[i].trash_amount = 0;
+                    }
+
+                    GameData->ships[i].position.x = serverPublish->ships[i]->x;
+                    GameData->ships[i].position.y = serverPublish->ships[i]->y;
+                }
+
+                GameData->trashes = (Trash *)malloc(sizeof(Trash) * serverPublish->n_trash_pieces);
+                for (int i = 0; i < (int)serverPublish->n_trash_pieces; i++)
+                {
+                    GameData->trashes[i].position.x = serverPublish->trash_pieces[i]->x;
+                    GameData->trashes[i].position.y = serverPublish->trash_pieces[i]->y;
+                }
+
+                /*
+            printf("Received the following data.\n");
+            printf("GameOver: %d\n", serverPublish->game_over);
+            printf("Number of planets: %zu\n", serverPublish->n_planets);
+            printf("Planet name: %s\n", serverPublish->planets[0]->name);
+            */
+
+                pthread_mutex_unlock(&mutex_renderer);
+            }
         }
-
-        GameData->ships[i].position.x = serverPublish->ships[i]->x;
-        GameData->ships[i].position.y = serverPublish->ships[i]->y;
     }
-
-    GameData->trashes = (Trash *)malloc(sizeof(Trash)* serverPublish->n_trash_pieces);
-    for(int i=0; i < (int)serverPublish->n_trash_pieces ;i++)
-    {
-        GameData->trashes[i].position.x = serverPublish->trash_pieces[i]->x;
-        GameData->trashes[i].position.y = serverPublish->trash_pieces[i]->y;
-    }
-
-        /*
-    printf("Received the following data.\n");
-    printf("GameOver: %d\n", serverPublish->game_over);
-    printf("Number of planets: %zu\n", serverPublish->n_planets);
-    printf("Planet name: %s\n", serverPublish->planets[0]->name);
-    */
-
+    
     closeContexts(lastPosition2);
     return NULL;
 }
 
-/*
-pthread_mutex_t mutex_renderer = PTHREAD_MUTEX_INITIALIZER;
-*/
 
 int main(int argc, char *argv[]){
 //Remove warning
@@ -231,7 +268,8 @@ int main(int argc, char *argv[]){
 
     pthread_t thread_id;
     GameState *gameData = (GameState *)malloc(sizeof(GameState));
-    client_thread_arguements p_args = {sub_port_str, zmqCtx, gameData};
+    volatile int end = 0;
+    client_thread_arguements p_args = {sub_port_str, zmqCtx, gameData, &end};
     pthread_create(&thread_id, NULL,client_thread_sub, &p_args);
 
     pthread_joinArgs joinArgs = {thread_id, NULL};
@@ -243,6 +281,7 @@ int main(int argc, char *argv[]){
     if (!zmqREQSocket)
     {
         printf("Critical error: Failed to create the Req Socket.\n");
+        end = 1;
         closeContexts(lastPosition);
         return -1;
     }
@@ -251,6 +290,7 @@ int main(int argc, char *argv[]){
     int setSocket = zmq_setsockopt(zmqREQSocket, ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
     if(setSocket){
         printf("Critical Error: Failed to set timeout to Req Socket.\n");
+        end = 1;
         closeContexts(lastPosition);
         return -1;
     }
@@ -259,6 +299,7 @@ int main(int argc, char *argv[]){
     int connectStatus = zmq_connect(zmqREQSocket, req_port_str);
     if(connectStatus){
         printf("Error conecting to req socket: %s\n", zmq_strerror(errno));
+        end = 1;
         closeContexts(lastPosition);
         return -1;
     }
@@ -271,6 +312,7 @@ int main(int argc, char *argv[]){
     if (status == -1)
     {
         printf("Critical failure: Failed to send connection Message.\n");
+        end = 1;
         closeContexts(lastPosition);
         exit(1);
     }
@@ -281,11 +323,14 @@ int main(int argc, char *argv[]){
 
     if(status){
         printf("Critical failure: Failed to receive connection Message.\n");
+        end = 1;
         closeContexts(lastPosition);
         return -1;
     }
 
     ServerMessage *serverReply = zmq_msg_t_To_server_message(&zmq_rep);
+    free_unpacked_args serverMessageArgs = {serverReply,NULL};
+    createContextDataforClosing((genericfunction *)wrapper_server_message_free_unpacked, (void *)&serverMessageArgs ,&lastPosition);
 
     printf("Received the following data.\n");
     printf("Status: %d\n", serverReply->msg_type);
@@ -379,10 +424,10 @@ int main(int argc, char *argv[]){
     updateWindow = SDL_AddTimer(30, (SDL_TimerCallback)timer_callback, NULL);
 
     SDL_Event SDL_tempEvent;
-
+    */
     while (!end)
     {
-        SDL_WaitEvent(&SDL_tempEvent);
+        /* SDL_WaitEvent(&SDL_tempEvent);
         switch (SDL_tempEvent.type)
         {
         case SDL_QUIT:
@@ -390,12 +435,20 @@ int main(int argc, char *argv[]){
             break;
 
         case SDL_USEREVENT:
-            if(SDL_tempEvent.user.code == 2){
-                pthread_mutex_lock(&mutex_renderer);
-                SDL_RenderPresent(renderer);
-                pthread_mutex_unlock(&mutex_renderer);
+            if(SDL_tempEvent.user.code == 2){ */
 
-            }
+        if (gameData->ships)
+        {
+            pthread_mutex_lock(&mutex_renderer);
+            // Draw(, gameData);
+            printf("Checkpoint main.\n");
+            printf("Ship name:%c\n", gameData->ships[0].name);
+            pthread_mutex_unlock(&mutex_renderer);
+        }
+
+                //SDL_RenderPresent(renderer);
+
+            /* }
             break;
         
         case SDL_KEYDOWN:
@@ -420,17 +473,14 @@ int main(int argc, char *argv[]){
 
         default:
             break;
-        }
+        }*/
+       end = 1;
     }
 
-    SDL_RemoveTimer(updateWindow);
-    pthread_join(threadId, NULL); //For correct thread resource closing
+    //SDL_RemoveTimer(updateWindow);
 
     //Do Stuff
-    server__free_unpacked(serverRep,NULL);
-    */
     closeContexts(lastPosition);
-    printf("%c\n", gameData->ships->name);
     free(gameData->planets);
     free(gameData->ships);
     free(gameData->trashes);
