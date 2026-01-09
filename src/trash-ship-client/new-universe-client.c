@@ -67,7 +67,7 @@ typedef struct TTF_CloseFont_args
 {
     TTF_Font *font;
 } TTF_CloseFont_args;
-// Wrapper to make pthread_join compatible with your genericfunction signature -- gemini voodoo
+// Wrapper to make pthread_join compatible with your genericfunction signature --
 // Nota para o professor como decidimos não retirar o pedantic e não queríamos uma nova linha
 // no if do graceful esta função permite a correta execução do código.
 void wrapper_pthread_join(void *arg)

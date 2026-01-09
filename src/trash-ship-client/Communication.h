@@ -73,9 +73,9 @@ ServerMessage *zmq_msg_t_To_server_message(zmq_msg_t *zmqMsg);
 UniverseStateMessage *zmq_msg_t_To_UniverseStateMessage(zmq_msg_t *zmqMsg);
 
 
-void initCntrlMsg(uint8_t *msg, uint8_t myID, ClientMessage *proto_msg);
+/* void initCntrlMsg(uint8_t *msg, uint8_t myID, ClientMessage *proto_msg);
 
-void send_cntrl(void *s_, ClientMessage sendMessage, gful_lifo **gracefull_lifo);
+void send_cntrl(void *s_, ClientMessage sendMessage, gful_lifo **gracefull_lifo); */
 /*
 //Server
 ClientMessage *serverReceive(void *s_, zmq_msg_t *msg_, int flags_, gful_lifo **graceful_exit);
