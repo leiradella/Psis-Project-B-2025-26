@@ -151,8 +151,14 @@ UniverseStateMessage *zmq_msg_t_To_UniverseStateMessage(zmq_msg_t *zmqMsg){
         printf("Warning: Invalid message sent to zmq_msg_close at zmq_msg_t_To_server_message.\n");
     }
 
-    return serverSub;}
+    return serverSub;
+}
 
+void wrapper_server_message_free_unpacked(void *arg)
+{
+    free_unpacked_args *Data = (free_unpacked_args *)arg;
+    server_message__free_unpacked(Data->message, Data->allocator);
+}
 
 /*
 void initCntrlMsg(uint8_t *msg, uint8_t myID, ClientMessage *proto_msg){

@@ -47,6 +47,18 @@ typedef struct zmq_close_args{
     const char *addr;
 } zmq_disconnectArgs;
 
+typedef struct pthread_joinargs
+{
+    pthread_t id;
+    void *output;
+} pthread_joinArgs;
+
+typedef struct free_unpacked_argsstruct
+{
+    ServerMessage *message;
+    ProtobufCAllocator *allocator;
+} free_unpacked_args;
+
 //The safe class function wrap their namesakes with their respective error
 //handling and with graceful exit data.
 void *safe_zmq_ctx_new(gful_lifo **graceful_lifo);
@@ -93,4 +105,7 @@ uint8_t handleClientStill(Player *firstPlayer, uint8_t msgSenderID, GameState *g
 
 uint8_t handleClientMove(Player *firstPlayer, uint8_t msgSenderID, GameState *game_state, int *nNewPlayers, uint8_t msg);
 */
+
+void wrapper_server_message_free_unpacked(void *arg);
+
 #endif // MYLIB_H
