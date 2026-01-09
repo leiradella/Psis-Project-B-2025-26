@@ -548,16 +548,18 @@ int main(int argc, char *argv[])
                 {
                     printf("Warning: Failed to receive disconnect Rep.\n");
                 }
+                else
+                {
+                    ServerMessage *serverReplyDc = zmq_msg_t_To_server_message(&zmq_rep);
+                    free_unpacked_args serverMessageArgs = {serverReplyDc, NULL};
+                    createContextDataforClosing((genericfunction *)wrapper_server_message_free_unpacked, (void *)&serverMessageArgs, &lastPosition);
 
-                ServerMessage *serverReplyDc = zmq_msg_t_To_server_message(&zmq_rep);
-                free_unpacked_args serverMessageArgs = {serverReplyDc, NULL};
-                createContextDataforClosing((genericfunction *)wrapper_server_message_free_unpacked, (void *)&serverMessageArgs, &lastPosition);
+                    printf("Received the following data.\n");
+                    printf("Status: %d\n", serverReplyDc->msg_type);
+                    printf("id: %s\n", serverReplyDc->id);
 
-                printf("Received the following data.\n");
-                printf("Status: %d\n", serverReplyDc->msg_type);
-                printf("id: %s\n", serverReplyDc->id);
-
-                closeSingleContext(&lastPosition);
+                    closeSingleContext(&lastPosition);
+                }
 
                 client_message__init(&reqMessage);
             }
