@@ -1,31 +1,31 @@
 #include <libconfig.h>
-//#include <SDL2/SDL.h>
-//#include <SDL2/SDL_ttf.h>
+// #include <SDL2/SDL.h>
+// #include <SDL2/SDL_ttf.h>
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-//#include <pthread.h>
+// #include <pthread.h>
 
 #include "../universe-server/display.h"
 #include "../universe-server/universe-data.h"
 #include "Communication.h"
 #include "graceful-exit.h"
 
-
-typedef struct config{
+typedef struct config
+{
     int universeSize;
     int serverAddr;
     int serverBroadcast;
-}config;
+} config;
 
 pthread_mutex_t mutex_renderer = PTHREAD_MUTEX_INITIALIZER;
 
-/*
-Uint32 timer_callback(Uint32 interval, void *param){
+Uint32 timer_callback(Uint32 interval, void *param)
+{
     (void)param;
     SDL_Event timer_event;
-    //printf("Timer callback function\n");
+    // printf("Timer callback function\n");
 
     SDL_zero(timer_event);
     timer_event.type = SDL_USEREVENT;
@@ -35,7 +35,6 @@ Uint32 timer_callback(Uint32 interval, void *param){
     SDL_PushEvent(&timer_event);
     return interval;
 }
-*/
 
 typedef struct pthread_joinargs
 {
@@ -57,9 +56,14 @@ typedef struct free_unpacked_args
     ProtobufCAllocator *allocator;
 } free_unpacked_args;
 
+typedef struct SDL_RemoveTimer_args
+{
+    SDL_TimerID timer;
+}SDL_RemoveTimer_args;
+
 // Wrapper to make pthread_join compatible with your genericfunction signature -- gemini voodoo
-// Nota para o professor como decidimos não retirar o pedantic e não queríamos uma nova linha 
-//no if do graceful esta função permite a correta execução do código.
+// Nota para o professor como decidimos não retirar o pedantic e não queríamos uma nova linha
+// no if do graceful esta função permite a correta execução do código.
 void wrapper_pthread_join(void *arg)
 {
     pthread_joinArgs *Data = (pthread_joinArgs *)arg;
@@ -81,12 +85,19 @@ void wrapper_server_message_free_unpacked(void *arg)
     server_message__free_unpacked(Data->message, Data->allocator);
 }
 
-void *client_thread_sub(void *arg){
+void wrapper_SDL_remove_timer(void *arg)
+{
+    SDL_RemoveTimer_args *timer = (SDL_RemoveTimer_args *)arg;
+    SDL_RemoveTimer(timer->timer);
+}
+
+void *client_thread_sub(void *arg)
+{
     client_thread_arguements *data = (client_thread_arguements *)arg;
     GameState *GameData = data->sharedData;
     gful_lifo *lastPosition2 = GFUL_INIT;
 
-    void *zmqSubSocket = safe_zmq_socket(data->zmq_ctx , ZMQ_SUB, &lastPosition2);
+    void *zmqSubSocket = safe_zmq_socket(data->zmq_ctx, ZMQ_SUB, &lastPosition2);
     if (!zmqSubSocket)
     {
         printf("Critical error: Failed to create the Sub Socket.\n");
@@ -98,7 +109,8 @@ void *client_thread_sub(void *arg){
 
     int timeout = 1500;
     int setSocket = zmq_setsockopt(zmqSubSocket, ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
-    if(setSocket){
+    if (setSocket)
+    {
         printf("Critical Error: Failed to set timeout to Sub Socket.\n");
         *data->end = 1;
         closeContexts(lastPosition2);
@@ -106,7 +118,8 @@ void *client_thread_sub(void *arg){
     }
 
     setSocket = zmq_setsockopt(zmqSubSocket, ZMQ_SUBSCRIBE, "", 0);
-    if(setSocket){
+    if (setSocket)
+    {
         printf("Critical Error: Failed to subscribe to server.\n");
         *data->end = 1;
         closeContexts(lastPosition2);
@@ -114,7 +127,8 @@ void *client_thread_sub(void *arg){
     }
 
     int connectStatus = zmq_connect(zmqSubSocket, data->sub_port_str);
-    if(connectStatus){
+    if (connectStatus)
+    {
         printf("Critical Error: Failed conecting to sub socket: %s\n", zmq_strerror(errno));
         *data->end = 1;
         closeContexts(lastPosition2);
@@ -123,13 +137,10 @@ void *client_thread_sub(void *arg){
     zmq_disconnectArgs args = {zmqSubSocket, data->sub_port_str};
     createContextDataforClosing((genericfunction *)zmq_disconnect, &args, &lastPosition2);
 
-
     while (!(*data->end))
     {
-        printf("%d\n",*data->end);
-        printf("checkpoint thread1.\n");
+        //printf("%d\n", *data->end);
         int status = safe_zmq_msg_recv(zmqSubSocket, &zmq_sub, 0);
-        printf("checkpoint thread2.\n");
 
         if (status)
         {
@@ -208,24 +219,22 @@ void *client_thread_sub(void *arg){
             }
         }
     }
-    
+
     closeContexts(lastPosition2);
     return NULL;
 }
 
-
-int main(int argc, char *argv[]){
-//Remove warning
+int main(int argc, char *argv[])
+{
+    // Remove warning
     (void)argc;
     (void)argv;
 
-
-//Program state
+    // Program state
     gful_lifo *lastPosition = GFUL_INIT;
-    //int end = 0;
+    // int end = 0;
 
-
-//Read config file
+    // Read config file
     config_t cfg;
     config_init(&cfg);
     createContextDataforClosing((genericfunction *)config_destroy, &cfg, &lastPosition);
@@ -237,22 +246,21 @@ int main(int argc, char *argv[]){
     }
 
     config myConfig;
-    config_lookup_int(  &cfg, 
-                        "universe.size", 
-                        &myConfig.universeSize);
-    
-    config_lookup_int(   &cfg,
-                        "comunication.rep_port",
-                        &myConfig.serverAddr);
+    config_lookup_int(&cfg,
+                      "universe.size",
+                      &myConfig.universeSize);
 
-    config_lookup_int(   &cfg,
-                        "comunication.pub_port",
-                        &myConfig.serverBroadcast);
+    config_lookup_int(&cfg,
+                      "comunication.rep_port",
+                      &myConfig.serverAddr);
+
+    config_lookup_int(&cfg,
+                      "comunication.pub_port",
+                      &myConfig.serverBroadcast);
 
     printf("universe.size: %d\n", myConfig.universeSize);
 
-    
-    //create a string for the ports
+    // create a string for the ports
     char req_port_str[24];
     char sub_port_str[24];
 
@@ -261,21 +269,20 @@ int main(int argc, char *argv[]){
 
     printf("comunication.serverAddress: %s\n", req_port_str);
     printf("comunication.serverBroadcast: %s\n", sub_port_str);
-    
 
-//Initialize ZMQ
+    // Initialize ZMQ
     void *zmqCtx = safe_zmq_ctx_new(&lastPosition);
 
     pthread_t thread_id;
     GameState *gameData = (GameState *)malloc(sizeof(GameState));
     volatile int end = 0;
     client_thread_arguements p_args = {sub_port_str, zmqCtx, gameData, &end};
-    pthread_create(&thread_id, NULL,client_thread_sub, &p_args);
+    pthread_create(&thread_id, NULL, client_thread_sub, &p_args);
 
     pthread_joinArgs joinArgs = {thread_id, NULL};
     createContextDataforClosing((genericfunction *)wrapper_pthread_join, &joinArgs, &lastPosition);
 
-//Public server address interaction
+    // Public server address interaction
 
     void *zmqREQSocket = safe_zmq_socket(zmqCtx, ZMQ_REQ, &lastPosition);
     if (!zmqREQSocket)
@@ -288,16 +295,17 @@ int main(int argc, char *argv[]){
 
     int timeout = 1500;
     int setSocket = zmq_setsockopt(zmqREQSocket, ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
-    if(setSocket){
+    if (setSocket)
+    {
         printf("Critical Error: Failed to set timeout to Req Socket.\n");
         end = 1;
         closeContexts(lastPosition);
         return -1;
     }
 
-    
     int connectStatus = zmq_connect(zmqREQSocket, req_port_str);
-    if(connectStatus){
+    if (connectStatus)
+    {
         printf("Error conecting to req socket: %s\n", zmq_strerror(errno));
         end = 1;
         closeContexts(lastPosition);
@@ -316,12 +324,13 @@ int main(int argc, char *argv[]){
         closeContexts(lastPosition);
         exit(1);
     }
-    
+
     zmq_msg_t zmq_rep;
     createContextDataforClosing((genericfunction *)zmq_msg_close, &zmq_rep, &lastPosition);
     status = safe_zmq_msg_recv(zmqREQSocket, &zmq_rep, 0);
 
-    if(status){
+    if (status)
+    {
         printf("Critical failure: Failed to receive connection Message.\n");
         end = 1;
         closeContexts(lastPosition);
@@ -329,128 +338,175 @@ int main(int argc, char *argv[]){
     }
 
     ServerMessage *serverReply = zmq_msg_t_To_server_message(&zmq_rep);
-    free_unpacked_args serverMessageArgs = {serverReply,NULL};
-    createContextDataforClosing((genericfunction *)wrapper_server_message_free_unpacked, (void *)&serverMessageArgs ,&lastPosition);
+    free_unpacked_args serverMessageArgs = {serverReply, NULL};
+    createContextDataforClosing((genericfunction *)wrapper_server_message_free_unpacked, (void *)&serverMessageArgs, &lastPosition);
 
     printf("Received the following data.\n");
     printf("Status: %d\n", serverReply->msg_type);
     printf("id: %s\n", serverReply->id);
 
-
-/*
-    int dcStatus = zmq_disconnect(zmqREQSocket, (const char*)myConfig.serverAddr);
-    if(dcStatus){
-        printf("Error discontecting from public server address: %s\n", strerror(errno));
-    }
-
-//Private server address setup
-    connectStatus = zmq_connect(zmqREQSocket, (const char*)serverRep->movementaddr);
-    if(connectStatus){
-        printf("Error connecting to privete server address: %s \n", strerror(errno));
-        closeContexts(lastPosition);
-        return -1;
-    }
-
-
-//Brodcast server address setup
-    void *zmqSocketSub = safe_zmq_socket(zmqCtx, ZMQ_SUB, &lastPosition);
-    connectStatus = zmq_connect(zmqSocketSub, serverRep->broadcastaddr);
-    if(connectStatus){
-        printf("Error connecting to publisher: %s\n", strerror(errno));
-        closeContexts(lastPosition);
-        return -1;
-    }
-
-    int setSocket = zmq_setsockopt(zmqSocketSub, ZMQ_SUBSCRIBE, "Data", 4);
-    if(setSocket){
-        printf("Error subscribing to data: %s\n", strerror(errno));
-        closeContexts(lastPosition);
-        return -1;
-    }
-    int timeout = 1500;
-    setSocket = zmq_setsockopt(zmqSocketSub, ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
-    
-//Initialize 
-    if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
+    if (SDL_Init(SDL_INIT_EVERYTHING) != 0)
+    {
         printf("error initializing SDL: %s\n", SDL_GetError());
+        end = 1;
+        closeContexts(lastPosition);
+        return 0;
     }
     createContextDataforClosing((genericfunction *)SDL_Quit, NULL, &lastPosition);
 
-//Initialize SDL_ttf
-    if (TTF_Init() != 0) {
+    // Initialize SDL_ttf
+    if (TTF_Init() != 0)
+    {
         printf("TTF_Init Error: %s\n", TTF_GetError());
-        closeContexts(lastPosition);
-        return 1;
-    }
-
-//Create window
-    SDL_Window *window = SDL_CreateWindow(
-        "Universe Simulator", 
-        SDL_WINDOWPOS_CENTERED, 
-        SDL_WINDOWPOS_CENTERED, 
-        myConfig.universeSize, 
-        myConfig.universeSize, 
-        SDL_WINDOW_SHOWN
-    );
-
-    //check if window was created successfully
-    if (window == NULL) {
-        printf("SDL_CreateWindow Error: %s\n", SDL_GetError());
-        closeContexts(lastPosition);
-        return 1;
-    }
-
-//create SDL_renderer
-    SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-
-    if (renderer == NULL) {
-        SDL_DestroyWindow(window);
-        printf("SDL_CreateRenderer Error: %s\n", SDL_GetError());
-        closeContexts(lastPosition);
-        return 1;
-    }
-
-//Create thread to handle private connection
-     pthread_t threadId;
-     clientThreadArgs threadArgs = {&end, renderer, zmqSocketSub};
-     int threadStatus = pthread_create(&threadId, NULL, com_threadClient, &threadArgs);
-    if(threadStatus){
-        printf("Error initializing the thread: %s\n", strerror(errno));
+        end = 1;
         closeContexts(lastPosition);
         return -1;
     }
-//Create update window timer
+    createContextDataforClosing((genericfunction *)TTF_Quit, NULL, &lastPosition);
+
+    // Create window
+    SDL_Window *window = SDL_CreateWindow(
+        "Universe Simulator",
+        SDL_WINDOWPOS_CENTERED,
+        SDL_WINDOWPOS_CENTERED,
+        myConfig.universeSize,
+        myConfig.universeSize,
+        SDL_WINDOW_SHOWN);
+
+    // check if window was created successfully
+    if (window == NULL)
+    {
+        printf("SDL_CreateWindow Error: %s\n", SDL_GetError());
+        end = 1;
+        closeContexts(lastPosition);
+        return -1;
+    }
+    createContextDataforClosing((genericfunction *)SDL_DestroyWindow, window, &lastPosition);
+
+    SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+    if (renderer == NULL)
+    {
+        printf("SDL_CreateRenderer Error: %s\n", SDL_GetError());
+        end = 1;
+        closeContexts(lastPosition);
+        return -1;
+    }
+    createContextDataforClosing((genericfunction *)SDL_DestroyRenderer, renderer, &lastPosition);
+
+    /*
+        int dcStatus = zmq_disconnect(zmqREQSocket, (const char*)myConfig.serverAddr);
+        if(dcStatus){
+            printf("Error discontecting from public server address: %s\n", strerror(errno));
+        }
+
+    //Private server address setup
+        connectStatus = zmq_connect(zmqREQSocket, (const char*)serverRep->movementaddr);
+        if(connectStatus){
+            printf("Error connecting to privete server address: %s \n", strerror(errno));
+            closeContexts(lastPosition);
+            return -1;
+        }
+
+
+    //Brodcast server address setup
+        void *zmqSocketSub = safe_zmq_socket(zmqCtx, ZMQ_SUB, &lastPosition);
+        connectStatus = zmq_connect(zmqSocketSub, serverRep->broadcastaddr);
+        if(connectStatus){
+            printf("Error connecting to publisher: %s\n", strerror(errno));
+            closeContexts(lastPosition);
+            return -1;
+        }
+
+        int setSocket = zmq_setsockopt(zmqSocketSub, ZMQ_SUBSCRIBE, "Data", 4);
+        if(setSocket){
+            printf("Error subscribing to data: %s\n", strerror(errno));
+            closeContexts(lastPosition);
+            return -1;
+        }
+        int timeout = 1500;
+        setSocket = zmq_setsockopt(zmqSocketSub, ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
+
+    //Initialize
+        if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
+            printf("error initializing SDL: %s\n", SDL_GetError());
+        }
+        createContextDataforClosing((genericfunction *)SDL_Quit, NULL, &lastPosition);
+
+    //Initialize SDL_ttf
+        if (TTF_Init() != 0) {
+            printf("TTF_Init Error: %s\n", TTF_GetError());
+            closeContexts(lastPosition);
+            return 1;
+        }
+
+    //Create window
+        SDL_Window *window = SDL_CreateWindow(
+            "Universe Simulator",
+            SDL_WINDOWPOS_CENTERED,
+            SDL_WINDOWPOS_CENTERED,
+            myConfig.universeSize,
+            myConfig.universeSize,
+            SDL_WINDOW_SHOWN
+        );
+
+        //check if window was created successfully
+        if (window == NULL) {
+            printf("SDL_CreateWindow Error: %s\n", SDL_GetError());
+            closeContexts(lastPosition);
+            return 1;
+        }
+
+    //create SDL_renderer
+        SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+
+        if (renderer == NULL) {
+            SDL_DestroyWindow(window);
+            printf("SDL_CreateRenderer Error: %s\n", SDL_GetError());
+            closeContexts(lastPosition);
+            return 1;
+        }
+
+    //Create thread to handle private connection
+         pthread_t threadId;
+         clientThreadArgs threadArgs = {&end, renderer, zmqSocketSub};
+         int threadStatus = pthread_create(&threadId, NULL, com_threadClient, &threadArgs);
+        if(threadStatus){
+            printf("Error initializing the thread: %s\n", strerror(errno));
+            closeContexts(lastPosition);
+            return -1;
+        }
+            */
+    // Create update window timer
     SDL_TimerID updateWindow = 0;
     updateWindow = SDL_AddTimer(30, (SDL_TimerCallback)timer_callback, NULL);
-
+    SDL_RemoveTimer_args timerArgs = {updateWindow};
+    createContextDataforClosing((genericfunction *)wrapper_SDL_remove_timer, &timerArgs, &lastPosition);
     SDL_Event SDL_tempEvent;
-    */
+
     while (!end)
     {
-        /* SDL_WaitEvent(&SDL_tempEvent);
+        SDL_WaitEvent(&SDL_tempEvent);
         switch (SDL_tempEvent.type)
         {
         case SDL_QUIT:
-            end = 1;
+            // end = 1;
             break;
 
         case SDL_USEREVENT:
-            if(SDL_tempEvent.user.code == 2){ */
-
-        if (gameData->ships)
-        {
-            pthread_mutex_lock(&mutex_renderer);
-            // Draw(, gameData);
-            printf("Checkpoint main.\n");
-            printf("Ship name:%c\n", gameData->ships[0].name);
-            pthread_mutex_unlock(&mutex_renderer);
-        }
-
-                //SDL_RenderPresent(renderer);
-
-            /* }
+            if (SDL_tempEvent.user.code == 2)
+            {
+                if (gameData->ships)
+                {
+                    pthread_mutex_lock(&mutex_renderer);
+                    // Draw(, gameData);
+                    printf("Ship name:%c\n", gameData->ships[0].name);
+                    pthread_mutex_unlock(&mutex_renderer);
+                    //SDL_RenderPresent(renderer);
+                    end = 1;
+                }
+            }
             break;
-        
+
         case SDL_KEYDOWN:
         case SDL_KEYUP:
             switch (SDL_tempEvent.key.keysym.scancode)
@@ -463,7 +519,7 @@ int main(int argc, char *argv[]){
             case SDL_SCANCODE_DOWN:
             case SDL_SCANCODE_D:
             case SDL_SCANCODE_RIGHT:
-                com_ReqClient(zmqREQSocket, serverRep->key, SDL_tempEvent.type, SDL_tempEvent.key.keysym.scancode);
+                // com_ReqClient(zmqREQSocket, serverRep->key, SDL_tempEvent.type, SDL_tempEvent.key.keysym.scancode);
                 break;
 
             default:
@@ -473,13 +529,11 @@ int main(int argc, char *argv[]){
 
         default:
             break;
-        }*/
-       end = 1;
+        }
     }
 
-    //SDL_RemoveTimer(updateWindow);
-
-    //Do Stuff
+    //SDL_Delay(20000);
+    // Do Stuff
     closeContexts(lastPosition);
     free(gameData->planets);
     free(gameData->ships);
