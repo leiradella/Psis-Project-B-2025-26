@@ -126,16 +126,16 @@ void _DrawGameOver(SDL_Renderer* renderer, GameState* game_state) {
         return;
     }
 
-    //load font for game over text
+/*     //load font for game over text
     TTF_Font* font = TTF_OpenFont("arial.ttf", 48);
     if (font == NULL) {
         printf("Failed to load font: %s\n", TTF_GetError());
         exit(1);
-    }
+    } */
 
     //create "Game Over" text surface
     SDL_Color textColor = {255, 0, 0, 255}; //red color
-    SDL_Surface* textSurface = TTF_RenderText_Solid(font, "GAME OVER", textColor);
+    SDL_Surface* textSurface = TTF_RenderText_Solid(game_state->font, "GAME OVER", textColor);
     if (textSurface == NULL) {
         printf("Failed to create text surface: %s\n", TTF_GetError());
         exit(1);
@@ -157,7 +157,7 @@ void _DrawGameOver(SDL_Renderer* renderer, GameState* game_state) {
     SDL_RenderCopy(renderer, textTexture, NULL, &textRect);
     SDL_DestroyTexture(textTexture);
 
-    TTF_CloseFont(font);
+    //TTF_CloseFont(font);
 }
 
 void Draw(SDL_Renderer* renderer, GameState* game_state) {

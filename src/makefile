@@ -8,7 +8,7 @@ MATHFLAGS		:= -lm
 CLIENTDIR 		:= ./trash-ship-client/
 COMMONDIR		:= ./universe-server/
 CLIENTDIRSRC 	:= new-universe-client.c graceful-exit.c Communication.c
-CLIENTCOMMONSRC := 
+CLIENTCOMMONSRC := display.c
 PROTOSRC		:= msgB.proto
 PROTOOUT		:= msgB.pb-c.h msgB.pb-c.c
 
@@ -17,6 +17,7 @@ all: new-universe-client test-server proto
 new-universe-client: $(addprefix $(CLIENTDIR), $(CLIENTDIRSRC))	$(addprefix $(COMMONDIR), $(CLIENTCOMMONSRC))
 	$(CC) $(CFLAGS)	-o $(CLIENTDIR)$@	\
 	$(addprefix $(CLIENTDIR), $(CLIENTDIRSRC))	\
+	$(addprefix $(COMMONDIR), $(CLIENTCOMMONSRC))	\
 	msgB.pb-c.c	\
 	$(CONFIGFLAGS) $(PROTOFLAGS) $(ZMQFLAGS) $(SDLFLAGS)
 

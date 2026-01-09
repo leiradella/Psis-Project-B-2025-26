@@ -61,6 +61,10 @@ typedef struct SDL_RemoveTimer_args
     SDL_TimerID timer;
 }SDL_RemoveTimer_args;
 
+typedef struct TTF_CloseFont_args
+{
+    TTF_Font *font;
+}TTF_CloseFont_args;
 // Wrapper to make pthread_join compatible with your genericfunction signature -- gemini voodoo
 // Nota para o professor como decidimos não retirar o pedantic e não queríamos uma nova linha
 // no if do graceful esta função permite a correta execução do código.
@@ -89,6 +93,12 @@ void wrapper_SDL_remove_timer(void *arg)
 {
     SDL_RemoveTimer_args *timer = (SDL_RemoveTimer_args *)arg;
     SDL_RemoveTimer(timer->timer);
+}
+
+void wrapper_TTF_CloseFont(void *arg)
+{
+    TTF_CloseFont_args *data = (TTF_CloseFont_args *)arg;
+    TTF_CloseFont(data->font);
 }
 
 void *client_thread_sub(void *arg)
@@ -179,7 +189,7 @@ void *client_thread_sub(void *arg)
                         GameData->planets[i].name = 'A';
                         GameData->planets[i].trash_amount = 0;
                     }
-
+                    GameData->planets[i].radius = PLANET_RADIUS;
                     GameData->planets[i].position.x = serverPublish->planets[i]->x;
                     GameData->planets[i].position.y = serverPublish->planets[i]->y;
                 }
@@ -199,6 +209,7 @@ void *client_thread_sub(void *arg)
 
                     GameData->ships[i].position.x = serverPublish->ships[i]->x;
                     GameData->ships[i].position.y = serverPublish->ships[i]->y;
+                    GameData->ships[i].radius = SHIP_RADIUS;
                 }
 
                 GameData->trashes = (Trash *)malloc(sizeof(Trash) * serverPublish->n_trash_pieces);
@@ -206,6 +217,7 @@ void *client_thread_sub(void *arg)
                 {
                     GameData->trashes[i].position.x = serverPublish->trash_pieces[i]->x;
                     GameData->trashes[i].position.y = serverPublish->trash_pieces[i]->y;
+                    GameData->trashes[i].radius = TRASH_RADIUS;
                 }
 
                 /*
@@ -242,7 +254,7 @@ int main(int argc, char *argv[])
     {
         fprintf(stderr, "error\n");
         closeContexts(lastPosition);
-        exit(1);
+        return -1;
     }
 
     config myConfig;
@@ -322,7 +334,7 @@ int main(int argc, char *argv[])
         printf("Critical failure: Failed to send connection Message.\n");
         end = 1;
         closeContexts(lastPosition);
-        exit(1);
+        return -1;
     }
 
     zmq_msg_t zmq_rep;
@@ -363,6 +375,19 @@ int main(int argc, char *argv[])
         return -1;
     }
     createContextDataforClosing((genericfunction *)TTF_Quit, NULL, &lastPosition);
+
+    //load font
+    TTF_Font* font = TTF_OpenFont("./universe-server/arial.ttf", 12);
+    if (font == NULL) {
+        printf("Failed to load font: %s\n", TTF_GetError());
+        end = 1;
+        closeContexts(lastPosition);
+        return -1;
+    }
+    TTF_CloseFont_args cfont_args = {font};
+    createContextDataforClosing((genericfunction *)wrapper_TTF_CloseFont, &cfont_args, &lastPosition);
+
+    gameData->font = font;
 
     // Create window
     SDL_Window *window = SDL_CreateWindow(
@@ -498,7 +523,7 @@ int main(int argc, char *argv[])
                 if (gameData->ships)
                 {
                     pthread_mutex_lock(&mutex_renderer);
-                    // Draw(, gameData);
+                    Draw(renderer, gameData);
                     printf("Ship name:%c\n", gameData->ships[0].name);
                     pthread_mutex_unlock(&mutex_renderer);
                     //SDL_RenderPresent(renderer);
@@ -532,7 +557,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    //SDL_Delay(20000);
+    SDL_Delay(20000);
     // Do Stuff
     closeContexts(lastPosition);
     free(gameData->planets);
